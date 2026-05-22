@@ -46,6 +46,9 @@ var TUNER_ANALYSIS_GAIN = 16;
 var liveReady = false;
 var pendingScan = false;
 var parameterObserveRegistry = {};
+var controlSyncSignatures = {};
+var rackSyncPollTask = null;
+var RACK_SYNC_POLL_MS = 50;
 var lastState = {
   title: GHQ_MAP.title,
   scanned: false,
@@ -551,12 +554,19 @@ function parameterApiId(parameterApi) {
   try {
     id = parameterApi.id;
     if (id !== undefined && id !== null && id !== "") {
-      return id;
+      return String(id);
     }
   } catch (error) {
     // Fall through.
   }
   return null;
+}
+
+function observerRegistryKey(liveId) {
+  if (liveId === undefined || liveId === null || liveId === "") {
+    return null;
+  }
+  return String(liveId);
 }
 
 function clearParameterObservers() {
@@ -571,6 +581,7 @@ function clearParameterObservers() {
     if (entry && entry.observer) {
       try {
         entry.observer.property = "";
+        entry.observer.id = 0;
       } catch (error) {
         // Best-effort teardown before rebinding.
       }
@@ -579,22 +590,57 @@ function clearParameterObservers() {
   parameterObserveRegistry = {};
 }
 
-function onObservedParameterChange(args) {
-  var propertyName;
-  var entry;
-
-  if (args && args.length) {
-    propertyName = String(args[0] || "").toLowerCase();
-    if (propertyName && propertyName !== "value") {
-      return;
+function stopRackSyncPoll() {
+  if (rackSyncPollTask) {
+    try {
+      rackSyncPollTask.cancel();
+    } catch (error) {
+      // Ignore cancel errors on reload.
     }
+    rackSyncPollTask = null;
   }
+}
 
-  entry = parameterObserveRegistry[this.id];
+function startRackSyncPoll() {
+  stopRackSyncPoll();
+  if (typeof Task !== "function" || !liveAvailable()) {
+    return;
+  }
+  rackSyncPollTask = new Task(pollBoundControlsFromLive, this);
+  rackSyncPollTask.interval = RACK_SYNC_POLL_MS;
+  rackSyncPollTask.repeat();
+}
+
+function scheduleControlRefresh(controlId) {
+  var refreshFn;
+
+  if (!controlId) {
+    return;
+  }
+  refreshFn = function () {
+    refreshControlFromLive(controlId, true);
+  };
+  if (typeof defer === "function") {
+    defer(refreshFn);
+    return;
+  }
+  if (typeof Task === "function") {
+    new Task(refreshFn, this).schedule(0);
+    return;
+  }
+  refreshFn();
+}
+
+function onObservedParameterChange() {
+  var entry;
+  var key;
+
+  key = observerRegistryKey(this.id);
+  entry = key ? parameterObserveRegistry[key] : null;
   if (!entry || !entry.controlId) {
     return;
   }
-  refreshControlFromLive(entry.controlId);
+  scheduleControlRefresh(entry.controlId);
 }
 
 function attachParameterObserver(controlId, parameterApi) {
@@ -608,7 +654,7 @@ function attachParameterObserver(controlId, parameterApi) {
 
   observer = new LiveAPI(onObservedParameterChange);
   try {
-    observer.id = parameterId;
+    observer.id = parseInt(parameterId, 10);
     observer.property = "value";
     parameterObserveRegistry[parameterId] = {
       controlId: controlId,
@@ -636,13 +682,76 @@ function attachObserversForBinding(binding) {
   }
 }
 
-function refreshControlFromLive(controlId) {
+function controlSyncSignature(state) {
+  return [
+    state.normalized,
+    state.value,
+    state.active ? 1 : 0,
+    state.valueLabel || ""
+  ].join("|");
+}
+
+function boundControlViewState(control, binding) {
+  var state = {
+    id: control.id,
+    label: control.label,
+    kind: control.kind,
+    section: control.section || "",
+    detail: control.detail ? true : false,
+    bound: !!(binding && binding.targets && binding.targets.length),
+    deviceName: binding && binding.targets ? targetDeviceName(binding.targets) : "",
+    parameterName: binding && binding.targets && binding.targets.length ? getName(binding.targets[0].parameter) : "",
+    targetCount: binding && binding.targets ? binding.targets.length : 0,
+    normalized: 0,
+    value: 0,
+    active: false
+  };
+
+  if (state.bound) {
+    applyTargetState(state, control, binding.targets);
+    state.valueLabel = parameterState(binding.targets[0].parameter).valueLabel;
+  }
+  return state;
+}
+
+function refreshControlFromLive(controlId, alwaysEmit) {
   var binding = bindings[controlId];
+  var state;
+  var signature;
 
   if (!binding || !binding.control) {
     return;
   }
-  emitControlState(binding.control, binding);
+  state = boundControlViewState(binding.control, binding);
+  if (!alwaysEmit) {
+    signature = controlSyncSignature(state);
+    if (controlSyncSignatures[controlId] === signature) {
+      return;
+    }
+    controlSyncSignatures[controlId] = signature;
+  } else {
+    controlSyncSignatures[controlId] = controlSyncSignature(state);
+  }
+  safeMessnamed("ghq_engine_events", "control_state", JSON.stringify({
+    id: binding.control.id,
+    status: "",
+    state: state
+  }));
+}
+
+function pollBoundControlsFromLive() {
+  var i;
+  var control;
+
+  if (!liveAvailable() || !lastState.scanned) {
+    return;
+  }
+  for (i = 0; i < GHQ_MAP.controls.length; i += 1) {
+    control = GHQ_MAP.controls[i];
+    if (bindings[control.id] && bindings[control.id].targets && bindings[control.id].targets.length) {
+      refreshControlFromLive(control.id, false);
+    }
+  }
 }
 
 function bindControl(control) {
@@ -847,16 +956,14 @@ function controlViewState(control, binding, normalized, value) {
 
 function emitControlState(control, binding, normalized, value, status) {
   var state;
-  var refreshed;
   var payload;
 
   if (binding && binding.targets && binding.targets.length) {
-    refreshed = parameterState(binding.targets[0].parameter);
-    state = controlViewState(control, binding, refreshed.normalized, refreshed.value);
-    state.valueLabel = refreshed.valueLabel;
+    state = boundControlViewState(control, binding);
   } else {
     state = controlViewState(control, binding, normalized, value);
   }
+  controlSyncSignatures[control.id] = controlSyncSignature(state);
   payload = {
     id: control.id,
     status: status || "",
@@ -1204,7 +1311,9 @@ function scan() {
     liveReady = true;
   }
 
+  stopRackSyncPoll();
   clearParameterObservers();
+  controlSyncSignatures = {};
   bindings = {};
   scannedDevices = collectDevices();
   if (!liveAvailable()) {
@@ -1216,6 +1325,7 @@ function scan() {
   }
   publishTunerAnalysisGain();
   emitState("Scanned");
+  startRackSyncPoll();
 }
 
 function setControl(controlId, normalized) {
