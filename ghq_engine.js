@@ -25,6 +25,7 @@ var tunerState = { frequency: 0, note: "--", cents: 0, confidence: 0 };
 var tunerDisplayEnabled = false;
 var TUNER_EMIT_INTERVAL_MS = 83;
 var TUNER_CENTS_DELTA = 2;
+var TUNER_MIN_ANALYSIS_AMP = 0.02;
 var tunerLastEmitAt = 0;
 var liveReady = false;
 var pendingScan = false;
@@ -632,9 +633,14 @@ function tuner_frequency(frequency, confidence) {
     return;
   }
 
+  frequency = parseFloat(frequency) || 0;
+  if ((parseFloat(confidence) || 0) < TUNER_MIN_ANALYSIS_AMP) {
+    frequency = 0;
+  }
+
   noteInfo = noteNameFromFrequency(frequency);
   next = {
-    frequency: parseFloat(frequency) || 0,
+    frequency: frequency,
     note: noteInfo.note,
     cents: noteInfo.cents,
     confidence: parseFloat(confidence) || 0

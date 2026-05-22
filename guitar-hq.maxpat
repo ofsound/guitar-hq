@@ -274,13 +274,31 @@
       },
       {
         "box": {
+          "id": "tuner-gain",
+          "maxclass": "newobj",
+          "numinlets": 2,
+          "numoutlets": 1,
+          "patching_rect": [
+            60,
+            520,
+            52,
+            22
+          ],
+          "outlettype": [
+            "signal"
+          ],
+          "text": "*~ 8"
+        }
+      },
+      {
+        "box": {
           "id": "tuner-detect",
           "maxclass": "newobj",
           "numinlets": 1,
           "numoutlets": 3,
           "patching_rect": [
             60,
-            520,
+            560,
             420,
             22
           ],
@@ -300,7 +318,7 @@
           "numoutlets": 1,
           "patching_rect": [
             60,
-            560,
+            600,
             74,
             22
           ],
@@ -318,7 +336,7 @@
           "numoutlets": 1,
           "patching_rect": [
             60,
-            600,
+            640,
             148,
             22
           ],
@@ -504,6 +522,18 @@
         "patchline": {
           "source": [
             "plugin",
+            0
+          ],
+          "destination": [
+            "tuner-gain",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "tuner-gain",
             0
           ],
           "destination": [

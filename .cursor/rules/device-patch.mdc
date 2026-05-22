@@ -29,7 +29,7 @@ Checks patchline inlet/outlet bounds, nested editor subpatcher, **stereo audio p
 
 ## Wiring contracts (do not break)
 
-- **Audio:** `plugin~` L/R → `plugout~` L/R; L channel also → `fzero~` → `pack` → `prepend tuner_frequency` → `ghq_engine.js`
+- **Audio:** `plugin~` L/R → `plugout~` L/R; L channel also → `*~` (analysis gain, default 8×) → `fzero~` → `pack` → `prepend tuner_frequency` → `ghq_engine.js`
 - **Engine:** `js ghq_engine.js` — LiveAPI and control logic; state via **`messnamed("ghq_engine_events", …)` only** (no engine outlet fan-out)
 - **Events:** root `r ghq_engine_events` → compact `jsui`; editor subpatcher has its own `r ghq_engine_events` → `ghq_editor_ui.js`
 - **UI → engine:** compact/editor `jsui` `outlet` → `route open_editor` → `open` + `pcontrol` (editor) or engine inlet (commands)

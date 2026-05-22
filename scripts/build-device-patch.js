@@ -2,6 +2,8 @@ const fs = require("fs");
 
 const maxpatPath = "guitar-hq.maxpat";
 const amxdPath = "Guitar-HQ.amxd";
+// Analysis-only gain before fzero~ (does not affect plugin~ → plugout~ pass-through).
+const TUNER_ANALYSIS_GAIN = 8;
 
 function box(id, maxclass, text, rect, extra = {}) {
   const b = {
@@ -143,17 +145,22 @@ const patch = {
         numinlets: 2,
         numoutlets: 0
       }),
-      box("tuner-detect", "newobj", "fzero~ @period 2048 @size 4096 @freqmin 40 @freqmax 1200 @threshold 0.01 @quiet 1", [60.0, 520.0, 420.0, 22.0], {
+      box("tuner-gain", "newobj", "*~ " + TUNER_ANALYSIS_GAIN, [60.0, 520.0, 52.0, 22.0], {
+        numinlets: 2,
+        numoutlets: 1,
+        outlettype: ["signal"]
+      }),
+      box("tuner-detect", "newobj", "fzero~ @period 2048 @size 4096 @freqmin 40 @freqmax 1200 @threshold 0.01 @quiet 1", [60.0, 560.0, 420.0, 22.0], {
         numinlets: 1,
         numoutlets: 3,
         outlettype: ["float", "float", "bang"]
       }),
-      box("tuner-pack", "newobj", "pack 0. 0.", [60.0, 560.0, 74.0, 22.0], {
+      box("tuner-pack", "newobj", "pack 0. 0.", [60.0, 600.0, 74.0, 22.0], {
         numinlets: 2,
         numoutlets: 1,
         outlettype: [""]
       }),
-      box("tuner-prepend", "newobj", "prepend tuner_frequency", [60.0, 600.0, 148.0, 22.0], {
+      box("tuner-prepend", "newobj", "prepend tuner_frequency", [60.0, 640.0, 148.0, 22.0], {
         numinlets: 1,
         numoutlets: 1,
         outlettype: [""]
@@ -202,7 +209,8 @@ const patch = {
     lines: [
       line("plugin", 0, "plugout", 0),
       line("plugin", 1, "plugout", 1),
-      line("plugin", 0, "tuner-detect", 0),
+      line("plugin", 0, "tuner-gain", 0),
+      line("tuner-gain", 0, "tuner-detect", 0),
       line("tuner-detect", 0, "tuner-pack", 0),
       line("tuner-detect", 1, "tuner-pack", 1),
       line("tuner-pack", 0, "tuner-prepend", 0),
