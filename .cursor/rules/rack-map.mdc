@@ -1,0 +1,41 @@
+---
+description: ghq_rack_map.js — control schema, device aliases, and test expectations
+globs: ghq_rack_map.js,ghq_rack_map.test.js
+alwaysApply: false
+---
+
+# Rack map (`ghq_rack_map.js`)
+
+## Role
+
+Single source of truth for **what** the command center can control on `2026 Guitar Rack`. The engine scans Live; the map defines expected devices, parameters, and UI metadata.
+
+## Control entry shape
+
+- **`id`:** stable string used in UI `controlId` and engine bindings (must be unique)
+- **`label` / `section`:** UI grouping
+- **`kind`:** drives engine behavior (`slider`, `toggle`, `select`, `device_toggle`, …)
+- **`deviceKey`:** key into `deviceAliases`
+- **`parameter`:** array of acceptable Live parameter names (first match wins)
+- **`value`:** for `select` (amp chain index)
+- **`defaultNormalized`:** optional initial when unbound
+- **`detail: true`:** editor-only dense controls
+- **`optional: true`:** missing device does not count against `boundCount`
+
+## Device aliases
+
+`deviceAliases[deviceKey]` lists name variants (case-insensitive normalized match). Add aliases when users report scan misses — not arbitrary renames in Live sets.
+
+## Tests (`ghq_rack_map.test.js`)
+
+Run after map edits:
+
+```sh
+node ghq_rack_map.test.js
+```
+
+Validates: unique `id`, required fields, `deviceKey` exists in `deviceAliases`, `parameter` present for slider/toggle/select kinds.
+
+## Live verification
+
+Automated tests do not call LiveAPI. After map or alias changes, sync to User Library and **Scan** in Live next to the real rack.

@@ -1,0 +1,47 @@
+---
+description: Guitar HQ Max for Live device — stack, files, rack map, and conventions
+alwaysApply: true
+---
+
+# Project Context
+
+- **Product:** Guitar HQ — Max for Live **Audio Effect** command center for Ableton Live **12.4+**
+- **Target rack:** `2026 Guitar Rack` (see `ghq_rack_map.expectedRack` and `sourcePreset` in `ghq_rack_map.js`)
+- **Behavior:** Passes audio through; controls nearby rack devices via **LiveAPI** (no MIDI generation)
+- **Runtime:** Max `js` (engine) and `jsui` (compact + editor) with **ES5-style** JavaScript (`var`, `function`, no bundler)
+- **Tooling:** **Node.js** for `ghq_rack_map.test.js`, `node --check` on `.js` files, and `scripts/*` only
+- **Not in this repo:** React, TypeScript app, npm dependencies beyond scripts, Tailwind, Vite, `docs/` from other M4L projects
+
+## Device files (keep in sync together)
+
+Sync copies all of these to the User Library (see `scripts/sync-user-library.js`):
+
+- `ghq_engine.js` — LiveAPI scan, bindings, parameter I/O, events
+- `ghq_rack_map.js` — control definitions and device/parameter aliases
+- `ghq_compact_ui.js` — Live device strip UI
+- `ghq_editor_ui.js` — editor subpatcher UI
+- `ghq_ui_shared.js` — shared drawing helpers (`include("ghq_ui_shared.js")`)
+- `Guitar-HQ.amxd` — loadable device (`.js` must sit beside it in User Library)
+
+Patch shell: `guitar-hq.maxpat` (generated via `scripts/build-device-patch.js`).
+
+## Rack map (`ghq_rack_map.js`)
+
+- **`deviceAliases`:** logical keys (`utility`, `ampSims`, …) → possible Live device names
+- **`controls[]`:** each control has `id`, `label`, `section`, `kind`, `deviceKey`, and usually `parameter` (alias list)
+- **`kind`:** `slider` | `toggle` | `select` | `device_toggle` (and map-specific patterns)
+- **Nested amp rack:** `Saturn 2`, `NA Faceman`, `Cab IRs` bind to all matching nested instances under `Amp Sims`
+- **`optional: true`:** control may be absent without failing the map count
+- After adding/changing controls, run `node ghq_rack_map.test.js` and update both UIs if they hard-code sections
+
+## Live usage expectations
+
+- Drop device **next to** or **inside** the guitar rack chain on the same track
+- Click **Scan** after moving/renaming devices
+- Compact UI: quick Utility / Amp Sims / core toggles; **Edit** opens full editor subpatcher
+
+## Editing discipline
+
+- Match existing **mgraphics** style and `ghq_shared.colors` in UI files
+- Do not hand-edit `.amxd` binary structure; regenerate via `build-device-patch.js`
+- Do not copy Kick Snare Hat (`ksh_*`) patterns — this repo uses `ghq_*` and Audio Effect metadata (`aaaameta` value 7)

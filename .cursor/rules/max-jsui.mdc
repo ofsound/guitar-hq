@@ -1,0 +1,39 @@
+---
+description: jsui drawing and outlet command routing for compact and editor UIs
+globs: ghq_compact_ui.js,ghq_editor_ui.js,ghq_ui_shared.js
+alwaysApply: false
+---
+
+# jsui UIs
+
+## Shared module
+
+- `ghq_ui_shared.js` defines `ghq_shared` (colors, `clamp`, rects, buttons, sliders, `findZone`, …).
+- Both UIs: `include("ghq_ui_shared.js")`, `include("ghq_rack_map.js")`, `mgraphics.init()`, `mgraphics.relative_coords = 0`.
+
+## State flow
+
+- **Inbound (from `r ghq_engine_events`):** `anything()` handles `rack_state`, `control_state` (and editor also listens for `tuner_state` where drawn).
+- Parse JSON into local `rackState` / per-control entries, then `mgraphics.redraw()`.
+- **Outbound:** `send(...)` → `outlet(0, …)` — patch routes to engine or `open_editor` (not `messnamed` UI commands).
+- Common messages: `scan`, `set_control id normalized`, `trigger_control id`, `all_off`, `open_editor` (compact only).
+
+## Drawing
+
+- Use `ghq_shared.colors` and existing layout; compact strip is fixed **980×176**; editor is larger (see `ghq_editor_ui.js`).
+- `hitZones` rebuilt each `paint()`; `onclick` / `ondrag` use `ghq_shared.findZone`.
+- Sliders throttle sends (`SLIDER_SEND_INTERVAL_MS`, `SLIDER_SEND_DELTA`) before `set_control`.
+
+## Compact vs editor
+
+- **Compact** (`ghq_compact_ui.js`): Utility, Amp Sims selectors, core device toggles, time/mod/reverb toggles, Scan / Off / Edit
+- **Editor** (`ghq_editor_ui.js`): full rack sections, tuner display, detail sliders (`detail: true` controls in map)
+
+## Rack map coupling
+
+- Section layouts are partly hand-coded; new **sections** or compact shortcuts may need UI updates, not only `ghq_rack_map.js`.
+- Editor can render many controls generically by section; compact only exposes a subset.
+
+## After UI edits
+
+- Run post-edit gate; **`node scripts/sync-user-library.js` is mandatory** so Live reloads updated `.js` from User Library.

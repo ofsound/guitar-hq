@@ -1,0 +1,49 @@
+---
+description: Mandatory Ableton User Library sync, tests, and patch validation after device edits
+alwaysApply: true
+---
+
+# Post-Edit Verification
+
+`AGENTS.md` is the workflow source of truth.
+
+## Ableton sync (non-negotiable — do this last, do not skip)
+
+After **any** substantive change to the device—`ghq_*.js`, `guitar-hq.maxpat`, `Guitar-HQ.amxd`, or `scripts/build-device-patch.js` / `scripts/sync-user-library.js`—you **must** run:
+
+```sh
+node scripts/sync-user-library.js
+```
+
+**Do not finish the task without a successful sync.** Live reads `.js` from the User Library folder, not the git working tree.
+
+**Synced files:** `ghq_engine.js`, `ghq_compact_ui.js`, `ghq_editor_ui.js`, `ghq_ui_shared.js`, `ghq_rack_map.js`, `Guitar-HQ.amxd`
+
+**Default destination (macOS):**
+
+`~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/`
+
+Override with **`GHQ_ABLETON_DEST`** (not `KSH_ABLETON_DEST`).
+
+**While developing:** `npm run sync:watch` debounces copies on save.
+
+`node scripts/build-device-patch.js` also syncs at the end; if you **only** changed `.js` files, run sync explicitly anyway.
+
+## Tests and patch checks
+
+| What changed | Run before finishing |
+|--------------|----------------------|
+| `ghq_rack_map.js` or `ghq_rack_map.test.js` | `node ghq_rack_map.test.js` |
+| `ghq_engine.js`, UIs, or `ghq_ui_shared.js` | `node --check <each changed .js>` or `npm test` |
+| Any device file above | `node scripts/validate-device-patch.js` |
+| `guitar-hq.maxpat` or `scripts/build-device-patch.js` | `node scripts/build-device-patch.js` then `node scripts/validate-device-patch.js` |
+| **Always** (device edits) | **`node scripts/sync-user-library.js`** |
+
+Fix failures before finishing. `npm run verify` = build + test + validate (build includes sync); explicit commands above still apply when you did not run full verify.
+
+## Substantive vs trivial
+
+- **Substantive:** logic, UI, rack map, patch wiring, generated `.amxd`, scripts under `scripts/`, anything affecting Live behavior.
+- **Trivial (sync still required if device files touched):** comment-only edits in `ghq_*.js` still need sync if the user will reload in Live.
+
+**Docs-only** (`README.md`, `AGENTS.md`, `.cursor/rules`) — no sync unless accompanied by device file changes.

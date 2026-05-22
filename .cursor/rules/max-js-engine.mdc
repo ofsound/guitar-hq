@@ -1,0 +1,47 @@
+---
+description: ghq_engine.js — LiveAPI scan/bind, control I/O, events (Max js only)
+globs: ghq_engine.js,ghq_rack_map.js
+alwaysApply: false
+---
+
+# Engine (`ghq_engine.js`)
+
+## Runtime
+
+- Max `js` only (no `module.exports` class export). Node tests target **`ghq_rack_map.js`**, not the engine.
+- Loads map via `require("./ghq_rack_map")` or `include("ghq_rack_map.js")`.
+- Use `safeMessnamed` / `safeOutlet` so reload/recompile does not throw.
+
+## LiveAPI workflow
+
+- **`scan()`:** `collectDevices()` from current chain, then `bindControl()` for each `GHQ_MAP.controls` entry
+- **Name matching:** `normalizeName()` on device and parameter names; aliases in `deviceAliases` and per-control `parameter` arrays
+- **Writes:** `set_control id normalized` → `setControl()` sets Live parameter values (supports multi-target bindings)
+- **`trigger_control`:** toggles / amp chain selects
+- **`all_off`:** sets `device_toggle` controls to off
+- **`live_ready`:** defer scan until Live API is ready after device load
+
+## UI events (outbound)
+
+Broadcast on **`ghq_engine_events`** (and engine `outlet` 0):
+
+| Message | Payload |
+|---------|---------|
+| `rack_state` | JSON: title, scanned, status, `controls` map, boundCount, totalCount, unmapped |
+| `control_state` | JSON: `{ id, status, state }` per control update |
+| `tuner_state` | JSON: frequency, note, cents, confidence |
+
+## Inbound (from patch / UI outlet)
+
+Handled in `anything()`: `set_control`, `trigger_control`, `scan`, `all_off`, `tuner_frequency`, `init`, `live_ready`.
+
+## Adding a new control
+
+1. Add definition to `ghq_rack_map.controls` with valid `deviceKey` and `parameter` aliases
+2. Extend `ghq_rack_map.test.js` if new validation rules apply
+3. Wire UI in compact and/or editor if not covered by generic editor sections
+4. Run post-edit gate including **sync**
+
+## Audio thread
+
+- Engine does not process audio samples; tuner data arrives as Max messages from `fzero~` in the patch.

@@ -1,0 +1,13 @@
+{
+  "name": "guitar-hq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Max for Live command center for a guitar effects rack.",
+  "scripts": {
+    "build": "node scripts/build-device-patch.js",
+    "sync": "node scripts/sync-user-library.js",
+    "sync:watch": "node scripts/sync-user-library.js --watch",
+    "test": "node --check ghq_engine.js && node --check ghq_compact_ui.js && node --check ghq_editor_ui.js && node ghq_rack_map.test.js && node scripts/validate-device-patch.js",
+    "verify": "npm run build && npm test"
+  }
+}
