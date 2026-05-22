@@ -2,8 +2,8 @@ const fs = require("fs");
 
 const maxpatPath = "guitar-hq.maxpat";
 const amxdPath = "Guitar-HQ.amxd";
-// Analysis-only gain before fzero~ (does not affect plugin~ → plugout~ pass-through).
-const TUNER_ANALYSIS_GAIN = 8;
+// Analysis-only gain before fzero~ (separate tap: plugin~ → *~ → fzero~; audio out is plugin~ → plugout~ only).
+const TUNER_ANALYSIS_GAIN = 16;
 
 function box(id, maxclass, text, rect, extra = {}) {
   const b = {

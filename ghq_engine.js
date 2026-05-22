@@ -23,12 +23,26 @@ var bindings = {};
 var scannedDevices = [];
 var tunerState = { frequency: 0, note: "--", cents: 0, confidence: 0 };
 var tunerDisplayEnabled = false;
-var TUNER_EMIT_INTERVAL_MS = 83;
-var TUNER_CENTS_DELTA = 2;
+var TUNER_EMIT_INTERVAL_MS = 100;
+var TUNER_CENTS_DELTA = 4;
 var TUNER_MIN_ANALYSIS_AMP = 0.02;
+var TUNER_MEDIAN_WINDOW = 5;
+var TUNER_NOTE_HOLD_SAMPLES = 3;
+var TUNER_IDLE_HOLD_SAMPLES = 2;
+var TUNER_FREQ_EMA_ALPHA = 0.28;
+var TUNER_ATTACK_AMP_DELTA = 0.035;
+var TUNER_ATTACK_HOLD_MS = 160;
+var TUNER_ATTACK_JUMP_RATIO = 1.059;
 var tunerLastEmitAt = 0;
-var TUNER_GAIN_BASE = 2;
-var TUNER_GAIN_RANGE = 18;
+var tunerFreqSamples = [];
+var tunerFreqEma = 0;
+var tunerDisplayedNote = "--";
+var tunerPendingNote = "--";
+var tunerPendingNoteCount = 0;
+var tunerIdleHoldCount = 0;
+var tunerLastConfidence = 0;
+var tunerAttackHoldUntil = 0;
+var TUNER_ANALYSIS_GAIN = 16;
 var liveReady = false;
 var pendingScan = false;
 var lastState = {
@@ -568,29 +582,110 @@ function emitControlState(control, binding, normalized, value, status) {
   safeMessnamed("ghq_engine_events", "control_state", JSON.stringify(payload));
 }
 
-function computeTunerAnalysisGain() {
-  var binding = bindings["utility_gain"];
-  var normalized = 0.5;
-  var state;
-
-  if (binding && binding.targets && binding.targets.length) {
-    state = parameterState(binding.targets[0].parameter);
-    normalized = state.normalized;
-  }
-  return TUNER_GAIN_BASE + normalized * TUNER_GAIN_RANGE;
-}
-
 function publishTunerAnalysisGain() {
-  safeMessnamed("ghq_tuner_analysis_gain", computeTunerAnalysisGain());
+  safeMessnamed("ghq_tuner_analysis_gain", TUNER_ANALYSIS_GAIN);
 }
 
 function idleTunerState() {
   return { frequency: 0, note: "--", cents: 0, confidence: 0 };
 }
 
+function resetTunerSmoothing() {
+  tunerFreqSamples = [];
+  tunerFreqEma = 0;
+  tunerDisplayedNote = "--";
+  tunerPendingNote = "--";
+  tunerPendingNoteCount = 0;
+  tunerIdleHoldCount = 0;
+  tunerLastConfidence = 0;
+  tunerAttackHoldUntil = 0;
+}
+
+function isTunerAttackHoldActive() {
+  return Date.now() < tunerAttackHoldUntil;
+}
+
+function beginTunerAttackHold() {
+  tunerAttackHoldUntil = Date.now() + TUNER_ATTACK_HOLD_MS;
+  tunerPendingNoteCount = 0;
+}
+
+function isTunerNoteChange(rawFrequency) {
+  var candidate;
+
+  if (rawFrequency <= 0 || tunerDisplayedNote === "--") {
+    return false;
+  }
+  candidate = noteNameFromFrequency(rawFrequency).note;
+  return candidate !== "--" && candidate !== tunerDisplayedNote;
+}
+
+function prepareTunerNoteChange(rawFrequency) {
+  var candidate;
+
+  tunerAttackHoldUntil = 0;
+  tunerFreqSamples = [];
+  tunerFreqEma = rawFrequency;
+  candidate = noteNameFromFrequency(rawFrequency).note;
+  tunerPendingNote = candidate;
+  tunerPendingNoteCount = TUNER_NOTE_HOLD_SAMPLES;
+  if (candidate !== "--") {
+    tunerDisplayedNote = candidate;
+  }
+}
+
+function updateTunerAttackHold(rawFrequency, confidence) {
+  var ampRise;
+  var ratio;
+
+  if (isTunerAttackHoldActive()) {
+    return true;
+  }
+
+  ampRise = confidence - tunerLastConfidence;
+  tunerLastConfidence = confidence;
+
+  if (tunerDisplayedNote === "--" || tunerFreqEma <= 0) {
+    return false;
+  }
+
+  if (isTunerNoteChange(rawFrequency)) {
+    return false;
+  }
+
+  if (confidence >= TUNER_MIN_ANALYSIS_AMP && ampRise >= TUNER_ATTACK_AMP_DELTA) {
+    beginTunerAttackHold();
+    return true;
+  }
+
+  if (tunerFreqEma > 0 && rawFrequency > 0) {
+    ratio = rawFrequency / tunerFreqEma;
+    if (ratio > TUNER_ATTACK_JUMP_RATIO || ratio < 1 / TUNER_ATTACK_JUMP_RATIO) {
+      beginTunerAttackHold();
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isWildTunerFrequencySample(frequency) {
+  var ratio;
+
+  if (frequency <= 0 || tunerFreqEma <= 0) {
+    return false;
+  }
+  if (isTunerNoteChange(frequency)) {
+    return false;
+  }
+  ratio = frequency / tunerFreqEma;
+  return ratio > TUNER_ATTACK_JUMP_RATIO || ratio < 1 / TUNER_ATTACK_JUMP_RATIO;
+}
+
 function clearTunerDisplay() {
   tunerState = idleTunerState();
   tunerLastEmitAt = 0;
+  resetTunerSmoothing();
   safeMessnamed("ghq_engine_events", "tuner_state", JSON.stringify(tunerState));
 }
 
@@ -625,6 +720,155 @@ function noteNameFromFrequency(frequency) {
   };
 }
 
+function medianFrequency(samples) {
+  var sorted;
+  var mid;
+
+  if (!samples.length) {
+    return 0;
+  }
+  sorted = samples.slice().sort(function (a, b) {
+    return a - b;
+  });
+  mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2) {
+    return sorted[mid];
+  }
+  return (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function pushTunerFrequencySample(frequency) {
+  if (frequency <= 0) {
+    return 0;
+  }
+  if (isWildTunerFrequencySample(frequency)) {
+    if (tunerFreqSamples.length) {
+      return medianFrequency(tunerFreqSamples);
+    }
+    return tunerFreqEma > 0 ? tunerFreqEma : frequency;
+  }
+  tunerFreqSamples.push(frequency);
+  if (tunerFreqSamples.length > TUNER_MEDIAN_WINDOW) {
+    tunerFreqSamples.shift();
+  }
+  return medianFrequency(tunerFreqSamples);
+}
+
+function smoothTunerFrequency(medianFrequency) {
+  if (medianFrequency <= 0) {
+    tunerFreqEma = 0;
+    return 0;
+  }
+  if (tunerFreqEma <= 0) {
+    tunerFreqEma = medianFrequency;
+  } else {
+    tunerFreqEma = tunerFreqEma * (1 - TUNER_FREQ_EMA_ALPHA) + medianFrequency * TUNER_FREQ_EMA_ALPHA;
+  }
+  return tunerFreqEma;
+}
+
+function centsForDisplayedNote(frequency, displayNote) {
+  var names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+  var midi;
+  var nearestMidi;
+  var nearestClass;
+  var noteIndex = -1;
+  var diff;
+  var targetMidi;
+  var i;
+
+  if (!frequency || frequency <= 0 || displayNote === "--") {
+    return 0;
+  }
+
+  for (i = 0; i < names.length; i += 1) {
+    if (names[i] === displayNote) {
+      noteIndex = i;
+      break;
+    }
+  }
+  if (noteIndex < 0) {
+    return noteNameFromFrequency(frequency).cents;
+  }
+
+  midi = 69 + 12 * Math.log(frequency / 440) / Math.log(2);
+  nearestMidi = Math.round(midi);
+  nearestClass = ((nearestMidi % 12) + 12) % 12;
+  diff = noteIndex - nearestClass;
+  targetMidi = nearestMidi + diff;
+  if (diff > 6) {
+    targetMidi -= 12;
+  } else if (diff < -6) {
+    targetMidi += 12;
+  }
+  return Math.max(-50, Math.min(50, Math.round((midi - targetMidi) * 100)));
+}
+
+function stableTunerNote(frequency) {
+  var detected = noteNameFromFrequency(frequency);
+  var candidate = detected.note;
+
+  if (candidate === "--") {
+    tunerPendingNote = "--";
+    tunerPendingNoteCount = 0;
+    tunerDisplayedNote = "--";
+    return "--";
+  }
+
+  if (candidate === tunerDisplayedNote) {
+    tunerPendingNote = candidate;
+    tunerPendingNoteCount = 0;
+    return tunerDisplayedNote;
+  }
+
+  if (candidate === tunerPendingNote) {
+    tunerPendingNoteCount += 1;
+  } else {
+    tunerPendingNote = candidate;
+    tunerPendingNoteCount = 1;
+  }
+
+  if (tunerPendingNoteCount >= TUNER_NOTE_HOLD_SAMPLES) {
+    tunerDisplayedNote = tunerPendingNote;
+  }
+
+  return tunerDisplayedNote;
+}
+
+function buildSmoothedTunerReading(rawFrequency, confidence) {
+  var medianFreq;
+  var smoothFreq;
+  var displayNote;
+  var cents;
+
+  if (rawFrequency <= 0) {
+    tunerIdleHoldCount += 1;
+    if (tunerIdleHoldCount < TUNER_IDLE_HOLD_SAMPLES) {
+      return null;
+    }
+    resetTunerSmoothing();
+    return idleTunerState();
+  }
+
+  tunerIdleHoldCount = 0;
+  if (isTunerNoteChange(rawFrequency)) {
+    prepareTunerNoteChange(rawFrequency);
+  } else if (updateTunerAttackHold(rawFrequency, confidence)) {
+    return null;
+  }
+  medianFreq = pushTunerFrequencySample(rawFrequency);
+  smoothFreq = smoothTunerFrequency(medianFreq);
+  displayNote = stableTunerNote(smoothFreq);
+  cents = centsForDisplayedNote(smoothFreq, displayNote);
+
+  return {
+    frequency: smoothFreq,
+    note: displayNote,
+    cents: cents,
+    confidence: confidence
+  };
+}
+
 function shouldEmitTunerState(next) {
   var now = Date.now();
   var noteChanged = next.note !== tunerState.note;
@@ -645,7 +889,6 @@ function shouldEmitTunerState(next) {
 }
 
 function tuner_frequency(frequency, confidence) {
-  var noteInfo;
   var next;
 
   if (!tunerDisplayEnabled) {
@@ -653,25 +896,21 @@ function tuner_frequency(frequency, confidence) {
   }
 
   frequency = parseFloat(frequency) || 0;
-  if ((parseFloat(confidence) || 0) < TUNER_MIN_ANALYSIS_AMP) {
+  confidence = parseFloat(confidence) || 0;
+  if (confidence < TUNER_MIN_ANALYSIS_AMP) {
     frequency = 0;
   }
 
-  noteInfo = noteNameFromFrequency(frequency);
-  next = {
-    frequency: frequency,
-    note: noteInfo.note,
-    cents: noteInfo.cents,
-    confidence: parseFloat(confidence) || 0
-  };
-
-  if (!shouldEmitTunerState(next)) {
+  next = buildSmoothedTunerReading(frequency, confidence);
+  if (!next) {
     return;
   }
 
-  tunerState = next;
-  tunerLastEmitAt = Date.now();
-  safeMessnamed("ghq_engine_events", "tuner_state", JSON.stringify(tunerState));
+  if (next.note !== tunerState.note || shouldEmitTunerState(next)) {
+    tunerState = next;
+    tunerLastEmitAt = Date.now();
+    safeMessnamed("ghq_engine_events", "tuner_state", JSON.stringify(tunerState));
+  }
 }
 
 function scan() {
@@ -719,9 +958,6 @@ function setControl(controlId, normalized) {
     setNumeric(binding.targets[i].parameter, "value", value);
   }
   emitControlState(binding.control, binding, normalized, firstValue, "Set " + binding.control.label);
-  if (controlId === "utility_gain") {
-    publishTunerAnalysisGain();
-  }
 }
 
 function triggerControl(controlId) {

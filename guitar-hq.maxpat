@@ -287,7 +287,7 @@
           "outlettype": [
             "signal"
           ],
-          "text": "*~ 8"
+          "text": "*~ 16"
         }
       },
       {
