@@ -17,7 +17,8 @@ Single source of truth for **what** the command center can control on `2026 Guit
 - **`kind`:** drives engine behavior (`slider`, `toggle`, `select`, `device_toggle`, …)
 - **`deviceKey`:** key into `deviceAliases`
 - **`parameter`:** array of acceptable Live parameter names (first match wins)
-- **`value`:** for `select` (amp chain index)
+- **`chainName`:** for amp chain toggles — binds that chain’s `chain_activator` on the `deviceKey` rack
+- **`value`:** for `select` (discrete chain index), if used
 - **`defaultNormalized`:** optional initial when unbound
 - **`detail: true`:** editor-only dense controls
 - **`optional: true`:** missing device does not count against `boundCount`

@@ -30,7 +30,7 @@ Patch shell: `guitar-hq.maxpat` (generated via `scripts/build-device-patch.js`).
 - **`deviceAliases`:** logical keys (`utility`, `ampSims`, …) → possible Live device names
 - **`controls[]`:** each control has `id`, `label`, `section`, `kind`, `deviceKey`, and usually `parameter` (alias list)
 - **`kind`:** `slider` | `toggle` | `select` | `device_toggle` (and map-specific patterns)
-- **Nested amp rack:** `Saturn 2`, `NA Faceman`, `Cab IRs` bind to all matching nested instances under `Amp Sims`
+- **Nested amp rack:** Bassman chain — `Saturn 2`, `NA Faceman`, first `Cab IRs`; Dumble chain — `NA Overdrive Special`, second `Cab IRs` (`deviceIndex` 0/1)
 - **`optional: true`:** control may be absent without failing the map count
 - After adding/changing controls, run `node ghq_rack_map.test.js` and update both UIs if they hard-code sections
 

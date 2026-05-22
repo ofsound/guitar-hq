@@ -85,33 +85,61 @@ function drawAmpSims() {
   }
 }
 
-function drawCore() {
-  var x = 300;
-  var y = 48;
-  var controls = [
-    ["satur_on", "Saturn"],
-    ["nam_on", "Faceman"],
-    ["cab_on", "Cab"]
-  ];
+function ampChainPlugins(chain) {
+  if (chain === "bassman") {
+    return [
+      ["satur_on", "Saturn"],
+      ["nam_on", "Faceman"],
+      ["cab_on", "Cab"]
+    ];
+  }
+  if (chain === "dumble") {
+    return [
+      ["overdrive_on", "ODS"],
+      ["cab_dumble_on", "Cab"]
+    ];
+  }
+  return [];
+}
+
+function drawAmpChainColumn(chain, x, y, pluginW, pluginGap) {
+  var plugins = ampChainPlugins(chain);
+  var heading = chain === "bassman" ? "Bassman" : "Dumble";
   var i;
   var id;
 
-  ghq_shared.text("Core", x, 24, 13, colors.text);
-  for (i = 0; i < controls.length; i += 1) {
-    id = controls[i][0];
-    ghq_shared.button(hitZones, id, controls[i][1], x, y + i * 34, 78, 26, controlState(id).normalized >= 0.5, {
+  ghq_shared.text(heading, x, 24, 13, colors.text);
+  for (i = 0; i < plugins.length; i += 1) {
+    id = plugins[i][0];
+    ghq_shared.button(hitZones, id, plugins[i][1], x, y + i * pluginGap, pluginW, 26, controlState(id).normalized >= 0.5, {
       action: "trigger",
       controlId: id
     });
   }
-  ghq_shared.button(hitZones, "tuner_on", "Tuner", x + 92, 48, 78, 94, controlState("tuner_on").normalized >= 0.5, {
+  return x + pluginW + 14;
+}
+
+function drawCore() {
+  var x = 300;
+  var y = 48;
+  var chains = ghq_shared.activeAmpChains(rackState.controls);
+  var pluginW = 78;
+  var pluginGap = 34;
+  var tunerX = x;
+  var i;
+
+  for (i = 0; i < chains.length; i += 1) {
+    tunerX = drawAmpChainColumn(chains[i], x, y, pluginW, pluginGap);
+    x = tunerX;
+  }
+  ghq_shared.button(hitZones, "tuner_on", "Tuner", tunerX, 48, 78, 94, controlState("tuner_on").normalized >= 0.5, {
     action: "trigger",
     controlId: "tuner_on"
   });
 }
 
 function drawEffects() {
-  var x = 500;
+  var x = 580;
   var y = 42;
   var w = 106;
   var h = 24;

@@ -45,6 +45,7 @@ var tunerAttackHoldUntil = 0;
 var TUNER_ANALYSIS_GAIN = 16;
 var liveReady = false;
 var pendingScan = false;
+var parameterObserveRegistry = {};
 var lastState = {
   title: GHQ_MAP.title,
   scanned: false,
@@ -343,6 +344,126 @@ function matchingDevices(aliases) {
   return matches;
 }
 
+function findChainByName(rackApi, chainName) {
+  var chainIds = childIds(rackApi, "chains");
+  var i;
+  var chainApi;
+  var name;
+
+  for (i = 0; i < chainIds.length; i += 1) {
+    chainApi = apiFromId(chainIds[i]);
+    if (!chainApi) {
+      continue;
+    }
+    name = getName(chainApi);
+    if (namesMatch(name, [chainName])) {
+      return chainApi;
+    }
+  }
+  return null;
+}
+
+function chainMixerApi(chainApi) {
+  var mixerIds;
+
+  if (!chainApi) {
+    return null;
+  }
+
+  try {
+    mixerIds = parseIds(chainApi.get("mixer_device"));
+    if (mixerIds.length) {
+      return apiFromId(mixerIds[0]);
+    }
+  } catch (error) {
+    postDebug("mixer_device lookup failed: " + error.message);
+  }
+  return null;
+}
+
+function chainMixerPropertyParameter(chainApi, propertyName) {
+  var mixerApi;
+  var propIds;
+  var parameterApi;
+
+  if (!propertyName) {
+    return null;
+  }
+
+  mixerApi = chainMixerApi(chainApi);
+  if (!mixerApi) {
+    return null;
+  }
+
+  try {
+    propIds = parseIds(mixerApi.get(propertyName));
+    if (propIds.length) {
+      parameterApi = apiFromId(propIds[0]);
+      if (parameterApi) {
+        return parameterApi;
+      }
+    }
+  } catch (error) {
+    postDebug("chain mixer " + propertyName + " lookup failed: " + error.message);
+  }
+  return null;
+}
+
+function chainActivatorParameter(chainApi, aliases) {
+  var mixerApi;
+  var activatorIds;
+  var parameterApi;
+
+  if (!chainApi) {
+    return null;
+  }
+
+  try {
+    mixerApi = chainMixerApi(chainApi);
+    if (mixerApi) {
+      activatorIds = parseIds(mixerApi.get("chain_activator"));
+      if (activatorIds.length) {
+        parameterApi = apiFromId(activatorIds[0]);
+        if (parameterApi) {
+          return parameterApi;
+        }
+      }
+    }
+  } catch (error) {
+    postDebug("chain_activator lookup failed: " + error.message);
+  }
+
+  return firstParameter(mixerApi, aliases || ["Chain Activator", "Activator", "Speaker"]);
+}
+
+function bindChainTargets(control) {
+  var deviceAliases = GHQ_MAP.deviceAliases[control.deviceKey] || control.device || [];
+  var racks = matchingDevices(deviceAliases);
+  var rackApi = racks.length ? racks[0] : null;
+  var chainApi;
+  var parameterApi;
+
+  if (!rackApi || !control.chainName) {
+    return [];
+  }
+
+  chainApi = findChainByName(rackApi, control.chainName);
+  if (!chainApi) {
+    return [];
+  }
+
+  if (control.mixerParameter) {
+    parameterApi = chainMixerPropertyParameter(chainApi, control.mixerParameter);
+  } else {
+    parameterApi = chainActivatorParameter(chainApi, control.parameter || []);
+  }
+  if (!parameterApi) {
+    return [];
+  }
+
+  return [{ device: rackApi, chain: chainApi, parameter: parameterApi }];
+}
+
 function resolveTargetDevices(control) {
   var deviceAliases = GHQ_MAP.deviceAliases[control.deviceKey] || control.device || [];
   var devices = matchingDevices(deviceAliases);
@@ -388,6 +509,24 @@ function deviceOnParameter(deviceApi) {
   return firstParameter(deviceApi, ["Device On", "On", "Active", "Bypass"]);
 }
 
+function parameterValueLabel(parameterApi, value) {
+  var result;
+
+  if (!parameterApi) {
+    return "";
+  }
+
+  try {
+    result = parameterApi.call("str_for_value", value);
+    if (result instanceof Array) {
+      return result.join(" ");
+    }
+    return String(result || "");
+  } catch (error) {
+    return "";
+  }
+}
+
 function parameterState(parameterApi) {
   var min = getNumeric(parameterApi, "min", 0);
   var max = getNumeric(parameterApi, "max", 1);
@@ -398,8 +537,112 @@ function parameterState(parameterApi) {
     value: value,
     min: min,
     max: max,
-    normalized: Math.max(0, Math.min(1, normalized))
+    normalized: Math.max(0, Math.min(1, normalized)),
+    valueLabel: parameterValueLabel(parameterApi, value)
   };
+}
+
+function parameterApiId(parameterApi) {
+  var id;
+
+  if (!parameterApi) {
+    return null;
+  }
+  try {
+    id = parameterApi.id;
+    if (id !== undefined && id !== null && id !== "") {
+      return id;
+    }
+  } catch (error) {
+    // Fall through.
+  }
+  return null;
+}
+
+function clearParameterObservers() {
+  var key;
+  var entry;
+
+  for (key in parameterObserveRegistry) {
+    if (!parameterObserveRegistry.hasOwnProperty(key)) {
+      continue;
+    }
+    entry = parameterObserveRegistry[key];
+    if (entry && entry.observer) {
+      try {
+        entry.observer.property = "";
+      } catch (error) {
+        // Best-effort teardown before rebinding.
+      }
+    }
+  }
+  parameterObserveRegistry = {};
+}
+
+function onObservedParameterChange(args) {
+  var propertyName;
+  var entry;
+
+  if (args && args.length) {
+    propertyName = String(args[0] || "").toLowerCase();
+    if (propertyName && propertyName !== "value") {
+      return;
+    }
+  }
+
+  entry = parameterObserveRegistry[this.id];
+  if (!entry || !entry.controlId) {
+    return;
+  }
+  refreshControlFromLive(entry.controlId);
+}
+
+function attachParameterObserver(controlId, parameterApi) {
+  var parameterId;
+  var observer;
+
+  parameterId = parameterApiId(parameterApi);
+  if (parameterId === null || parameterObserveRegistry[parameterId]) {
+    return;
+  }
+
+  observer = new LiveAPI(onObservedParameterChange);
+  try {
+    observer.id = parameterId;
+    observer.property = "value";
+    parameterObserveRegistry[parameterId] = {
+      controlId: controlId,
+      observer: observer
+    };
+  } catch (error) {
+    postDebug("observe " + controlId + " failed: " + (error && error.message ? error.message : String(error)));
+  }
+}
+
+function attachObserversForBinding(binding) {
+  var i;
+
+  if (!binding || !binding.control || !binding.targets || !binding.targets.length) {
+    return;
+  }
+  if (!liveAvailable()) {
+    return;
+  }
+
+  for (i = 0; i < binding.targets.length; i += 1) {
+    if (binding.targets[i].parameter) {
+      attachParameterObserver(binding.control.id, binding.targets[i].parameter);
+    }
+  }
+}
+
+function refreshControlFromLive(controlId) {
+  var binding = bindings[controlId];
+
+  if (!binding || !binding.control) {
+    return;
+  }
+  emitControlState(binding.control, binding);
 }
 
 function bindControl(control) {
@@ -409,14 +652,18 @@ function bindControl(control) {
   var state;
   var i;
 
-  for (i = 0; i < useDevices.length; i += 1) {
-    if (control.kind === "device_toggle") {
-      parameterApi = deviceOnParameter(useDevices[i]);
-    } else {
-      parameterApi = firstParameter(useDevices[i], control.parameter || []);
-    }
-    if (parameterApi) {
-      targets.push({ device: useDevices[i], parameter: parameterApi });
+  if (control.chainName) {
+    targets = bindChainTargets(control);
+  } else {
+    for (i = 0; i < useDevices.length; i += 1) {
+      if (control.kind === "device_toggle") {
+        parameterApi = deviceOnParameter(useDevices[i]);
+      } else {
+        parameterApi = firstParameter(useDevices[i], control.parameter || []);
+      }
+      if (parameterApi) {
+        targets.push({ device: useDevices[i], parameter: parameterApi });
+      }
     }
   }
 
@@ -443,14 +690,21 @@ function bindControl(control) {
     control: control,
     targets: targets
   };
+  attachObserversForBinding(bindings[control.id]);
   return state;
 }
 
 function targetDeviceName(targets) {
+  var chainName;
+
   if (!targets.length) {
     return "";
   }
   if (targets.length === 1) {
+    chainName = targets[0].chain ? getName(targets[0].chain) : "";
+    if (chainName) {
+      return displayDeviceName(targets[0].device) + " / " + chainName;
+    }
     return displayDeviceName(targets[0].device);
   }
   return displayDeviceName(targets[0].device) + " +" + (targets.length - 1);
@@ -466,6 +720,11 @@ function applyTargetState(state, control, targets) {
 
   if (control.kind === "select") {
     state.active = Math.round(first.value) === control.value;
+    return;
+  }
+
+  if (control.chainName && control.kind === "toggle") {
+    state.active = first.normalized >= 0.5;
     return;
   }
 
@@ -587,8 +846,18 @@ function controlViewState(control, binding, normalized, value) {
 }
 
 function emitControlState(control, binding, normalized, value, status) {
-  var state = controlViewState(control, binding, normalized, value);
-  var payload = {
+  var state;
+  var refreshed;
+  var payload;
+
+  if (binding && binding.targets && binding.targets.length) {
+    refreshed = parameterState(binding.targets[0].parameter);
+    state = controlViewState(control, binding, refreshed.normalized, refreshed.value);
+    state.valueLabel = refreshed.valueLabel;
+  } else {
+    state = controlViewState(control, binding, normalized, value);
+  }
+  payload = {
     id: control.id,
     status: status || "",
     state: state
@@ -935,6 +1204,7 @@ function scan() {
     liveReady = true;
   }
 
+  clearParameterObservers();
   bindings = {};
   scannedDevices = collectDevices();
   if (!liveAvailable()) {

@@ -12,10 +12,9 @@ The map targets the **`2026 Guitar Rack`** Audio Effect Rack preset (`.adg` in y
 Devices and nested chains referenced by the map:
 
 - `Utility`
-- `Amp Sims` with `Dry`, `Bassman`, and `Dumble` chain-selector buttons
-- `Saturn 2`
-- `NA Faceman`
-- `Cab IRs` (scanned as **Hybrid Reverb** in this rack)
+- `Amp Sims` with `Dry`, `Bassman`, and `Dumble` chain-activator toggles (one per rack chain)
+- `Saturn 2`, `NA Faceman`, and **Bassman** `Cab IRs` (first Hybrid Reverb in `Amp Sims`)
+- `NA Overdrive Special` and **Dumble** `Cab IRs` (second Hybrid Reverb instance, separate settings)
 - `Tuner`
 - `ValhallaDelay`
 - `ValhallaSupermassive`
@@ -28,9 +27,9 @@ Devices and nested chains referenced by the map:
 - `MixBox`
 
 The control definitions live in `ghq_rack_map.js`. Device and parameter names
-are matched case-insensitively. `Saturn 2`, `NA Faceman`, and `Cab IRs` are
-nested inside the `Amp Sims` rack chains, so those buttons bind to all matching
-nested instances found during scan.
+are matched case-insensitively. Bassman and Dumble amp chains each have their own
+devices inside `Amp Sims`; duplicate `Cab IRs` instances are bound by scan order
+(Bassman first, Dumble second).
 
 ## Development
 

@@ -7,6 +7,11 @@ var ghq_rack_map = {
     ampSims: ["Amp Sims"],
     saturn: ["Saturn 2", "FabFilter Saturn 2", "Satur 2"],
     faceman: ["NA Faceman", "Nembrini Audio NA Faceman", "NAM Faceman"],
+    overdriveSpecial: [
+      "NA Overdrive Special",
+      "Nembrini Audio NA Overdrive Special",
+      "Overdrive Special"
+    ],
     // Hybrid Reverb is the Live device name for the cab IR loader in this rack.
     cab: ["Cab IRs", "Hybrid Reverb"],
     tuner: ["Tuner"],
@@ -25,44 +30,72 @@ var ghq_rack_map = {
       id: "amp_dry",
       label: "Dry",
       section: "Amp Sims",
-      kind: "select",
+      kind: "toggle",
       deviceKey: "ampSims",
-      parameter: ["Chain Selector", "Chain Select", "Selector"],
-      value: 0
+      chainName: "Dry",
+      parameter: ["Chain Activator", "Activator"]
     },
     {
       id: "amp_bassman",
       label: "Bassman",
       section: "Amp Sims",
-      kind: "select",
+      kind: "toggle",
       deviceKey: "ampSims",
-      parameter: ["Chain Selector", "Chain Select", "Selector"],
-      value: 1
+      chainName: "Bassman",
+      parameter: ["Chain Activator", "Activator"]
     },
     {
       id: "amp_dumble",
       label: "Dumble",
       section: "Amp Sims",
-      kind: "select",
+      kind: "toggle",
       deviceKey: "ampSims",
-      parameter: ["Chain Selector", "Chain Select", "Selector"],
-      value: 2
+      chainName: "Dumble",
+      parameter: ["Chain Activator", "Activator"]
+    },
+    {
+      id: "amp_dry_vol",
+      label: "Dry Vol",
+      section: "Amp Sims",
+      kind: "slider",
+      deviceKey: "ampSims",
+      chainName: "Dry",
+      mixerParameter: "volume",
+      parameter: ["Volume"]
+    },
+    {
+      id: "amp_bassman_vol",
+      label: "Bassman Vol",
+      section: "Amp Sims",
+      kind: "slider",
+      deviceKey: "ampSims",
+      chainName: "Bassman",
+      mixerParameter: "volume",
+      parameter: ["Volume"]
+    },
+    {
+      id: "amp_dumble_vol",
+      label: "Dumble Vol",
+      section: "Amp Sims",
+      kind: "slider",
+      deviceKey: "ampSims",
+      chainName: "Dumble",
+      mixerParameter: "volume",
+      parameter: ["Volume"]
     },
     {
       id: "satur_on",
       label: "Saturn 2",
       section: "Core",
       kind: "device_toggle",
-      deviceKey: "saturn",
-      match: "all"
+      deviceKey: "saturn"
     },
     {
       id: "nam_on",
       label: "NA Faceman",
       section: "Core",
       kind: "device_toggle",
-      deviceKey: "faceman",
-      match: "all"
+      deviceKey: "faceman"
     },
     {
       id: "cab_on",
@@ -70,7 +103,22 @@ var ghq_rack_map = {
       section: "Core",
       kind: "device_toggle",
       deviceKey: "cab",
-      match: "all"
+      deviceIndex: 0
+    },
+    {
+      id: "overdrive_on",
+      label: "NA Overdrive Special",
+      section: "Dumble",
+      kind: "device_toggle",
+      deviceKey: "overdriveSpecial"
+    },
+    {
+      id: "cab_dumble_on",
+      label: "Cab IRs",
+      section: "Dumble",
+      kind: "device_toggle",
+      deviceKey: "cab",
+      deviceIndex: 1
     },
     {
       id: "tuner_on",
@@ -150,6 +198,70 @@ var ghq_rack_map = {
       section: "Verb",
       kind: "device_toggle",
       deviceKey: "mixBox"
+    },
+    {
+      id: "mixbox_slot1_on",
+      label: "Black 76",
+      section: "MixBox",
+      kind: "toggle",
+      deviceKey: "mixBox",
+      parameter: ["Slot 1 Power"]
+    },
+    {
+      id: "mixbox_slot2_on",
+      label: "Model 670",
+      section: "MixBox",
+      kind: "toggle",
+      deviceKey: "mixBox",
+      parameter: ["Slot 2 Power"]
+    },
+    {
+      id: "mixbox_slot3_on",
+      label: "White 2A",
+      section: "MixBox",
+      kind: "toggle",
+      deviceKey: "mixBox",
+      parameter: ["Slot 3 Power"]
+    },
+    {
+      id: "mixbox_slot4_on",
+      label: "Bus Compressor",
+      section: "MixBox",
+      kind: "toggle",
+      deviceKey: "mixBox",
+      parameter: ["Slot 4 Power"]
+    },
+    {
+      id: "mixbox_slot5_on",
+      label: "EQ PA",
+      section: "MixBox",
+      kind: "toggle",
+      deviceKey: "mixBox",
+      parameter: ["Slot 5 Power"]
+    },
+    {
+      id: "mixbox_slot6_on",
+      label: "EQ 81",
+      section: "MixBox",
+      kind: "toggle",
+      deviceKey: "mixBox",
+      parameter: ["Slot 6 Power"]
+    },
+    {
+      id: "mixbox_slot7_on",
+      label: "British EQ",
+      section: "MixBox",
+      kind: "toggle",
+      deviceKey: "mixBox",
+      parameter: ["Slot 7 Power"]
+    },
+    {
+      id: "mixbox_slot8_on",
+      label: "Vintage EQ-1A",
+      section: "MixBox",
+      kind: "toggle",
+      deviceKey: "mixBox",
+      parameter: ["Slot 8 Power"]
     },
     {
       id: "delay_mix",

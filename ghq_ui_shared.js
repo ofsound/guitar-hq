@@ -85,14 +85,33 @@ ghq_shared.button = function (zones, id, label, x, y, w, h, active, data, fontSi
   ghq_shared.zone(zones, id, x, y, w, h, data);
 };
 
-ghq_shared.slider = function (zones, id, label, value, x, y, w, h, data) {
+ghq_shared.slider = function (zones, id, label, value, x, y, w, h, data, valueLabel) {
   var colors = ghq_shared.colors;
   var normalized = ghq_shared.clamp(value, 0, 1);
+  var rightText = valueLabel ? String(valueLabel) : Math.round(normalized * 100) + "%";
 
-  ghq_shared.text(label, x, y - 6, 10, colors.muted);
+  if (label) {
+    ghq_shared.text(label, x, y - 6, 10, colors.muted);
+  }
   ghq_shared.rect(x, y, w, h, colors.off);
   ghq_shared.rect(x, y, Math.round(w * normalized), h, colors.blue);
   ghq_shared.strokeRect(x, y, w, h, colors.softStroke, 1);
-  ghq_shared.text(Math.round(normalized * 100) + "%", x + w - 6, y + h / 2 + 4, 10, colors.text, "right");
+  ghq_shared.text(rightText, x + w - 6, y + h / 2 + 4, 10, colors.text, "right");
   ghq_shared.zone(zones, id, x, y, w, h, data);
+};
+
+ghq_shared.controlLookup = function (controls, id) {
+  return (controls && controls[id]) || { bound: false, normalized: 0, value: 0, active: false };
+};
+
+ghq_shared.activeAmpChains = function (controls) {
+  var chains = [];
+
+  if (ghq_shared.controlLookup(controls, "amp_bassman").active) {
+    chains.push("bassman");
+  }
+  if (ghq_shared.controlLookup(controls, "amp_dumble").active) {
+    chains.push("dumble");
+  }
+  return chains;
 };

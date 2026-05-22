@@ -91,8 +91,8 @@
             "rect": [
               120,
               120,
-              1658,
-              680
+              1928,
+              740
             ],
             "bglocked": 0,
             "openinpresentation": 1,
@@ -133,15 +133,15 @@
                   "patching_rect": [
                     0,
                     0,
-                    1658,
-                    680
+                    1928,
+                    740
                   ],
                   "presentation": 1,
                   "presentation_rect": [
                     0,
                     0,
-                    1658,
-                    680
+                    1928,
+                    740
                   ]
                 }
               },

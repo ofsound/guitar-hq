@@ -2,6 +2,21 @@ const fs = require("fs");
 
 const maxpatPath = "guitar-hq.maxpat";
 const amxdPath = "Guitar-HQ.amxd";
+// Match ghq_editor_ui.js layout constants (detail cols + MixBox + right margin).
+const EDITOR_DETAIL_COL_X = 24;
+const EDITOR_DETAIL_SLIDER_W = 164;
+const EDITOR_DETAIL_COL_GAP = 24;
+const EDITOR_DETAIL_COL_COUNT = 9;
+const EDITOR_AMP_COL_W = 150;
+const EDITOR_RIGHT_MARGIN = 62;
+const EDITOR_WIDTH =
+  EDITOR_DETAIL_COL_X +
+  (EDITOR_DETAIL_COL_COUNT - 1) * (EDITOR_DETAIL_SLIDER_W + EDITOR_DETAIL_COL_GAP) +
+  EDITOR_DETAIL_SLIDER_W +
+  EDITOR_DETAIL_COL_GAP +
+  EDITOR_AMP_COL_W +
+  EDITOR_RIGHT_MARGIN;
+const EDITOR_HEIGHT = 740;
 // Analysis-only gain before fzero~ (separate tap: plugin~ → *~ → fzero~; audio out is plugin~ → plugout~ only).
 const TUNER_ANALYSIS_GAIN = 16;
 
@@ -33,7 +48,7 @@ function editorSubpatcher() {
       modernui: 1
     },
     classnamespace: "box",
-    rect: [120.0, 120.0, 1658.0, 680.0],
+    rect: [120.0, 120.0, EDITOR_WIDTH, EDITOR_HEIGHT],
     bglocked: 0,
     openinpresentation: 1,
     default_fontsize: 12.0,
@@ -56,9 +71,9 @@ function editorSubpatcher() {
           numinlets: 1,
           numoutlets: 1,
           outlettype: [""],
-          patching_rect: [0.0, 0.0, 1658.0, 680.0],
+          patching_rect: [0.0, 0.0, EDITOR_WIDTH, EDITOR_HEIGHT],
           presentation: 1,
-          presentation_rect: [0.0, 0.0, 1658.0, 680.0]
+          presentation_rect: [0.0, 0.0, EDITOR_WIDTH, EDITOR_HEIGHT]
         }
       },
       box("editor-out", "outlet", "", [100.0, 700.0, 30.0, 22.0], {

@@ -32,6 +32,9 @@ for (const control of map.controls) {
   if ((control.kind === "slider" || control.kind === "toggle" || control.kind === "select") && !control.parameter) {
     fail(`${control.id}: missing parameter aliases`);
   }
+  if (control.mixerParameter && !control.chainName) {
+    fail(`${control.id}: mixerParameter requires chainName`);
+  }
   if (control.optional && control.kind === "device_toggle") {
     fail(`${control.id}: device toggles should not be optional`);
   }

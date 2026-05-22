@@ -11,13 +11,28 @@ mgraphics.autofill = 0;
 
 var DETAIL_COL_X = 24;
 var DETAIL_SLIDER_W = 164;
-var DETAIL_COL_GAP = 12;
+var DETAIL_COL_GAP = 24;
 var DETAIL_COL_PITCH = DETAIL_SLIDER_W + DETAIL_COL_GAP;
 var DETAIL_COL_COUNT = 9;
 var DETAIL_COL_Y = 300;
+var DETAIL_ROW_PITCH = 52;
+var DETAIL_LABEL_H = 14;
+var DETAIL_CONTROL_H = 24;
 var DETAIL_TOGGLE_FONT = 13;
-var WIDTH = DETAIL_COL_X + (DETAIL_COL_COUNT - 1) * DETAIL_COL_PITCH + DETAIL_SLIDER_W + 62;
-var HEIGHT = 680;
+var AMP_COL_W = 150;
+var AMP_CONTROL_H = 30;
+var AMP_ROW_PITCH = 38;
+var AMP_COL_GAP = 24;
+var EDITOR_RIGHT_MARGIN = 62;
+// Detail columns (incl. SuperPlate) + gap + MixBox column + margin. Keep in sync with build-device-patch.js EDITOR_WIDTH.
+var WIDTH =
+  DETAIL_COL_X +
+  (DETAIL_COL_COUNT - 1) * DETAIL_COL_PITCH +
+  DETAIL_SLIDER_W +
+  DETAIL_COL_GAP +
+  AMP_COL_W +
+  EDITOR_RIGHT_MARGIN;
+var HEIGHT = 740;
 var colors = ghq_shared.colors;
 var hitZones = [];
 var rackState = {
@@ -116,35 +131,92 @@ function drawTuner() {
   });
 }
 
-function drawAmpAndCore() {
-  var x = 660;
-  var y = 28;
-  var ids = ["amp_dry", "amp_bassman", "amp_dumble"];
-  var labels = ["Dry", "Bassman", "Dumble"];
-  var core = [
-    ["satur_on", "Saturn 2"],
-    ["nam_on", "NA Faceman"],
-    ["cab_on", "Cab IRs"]
-  ];
+function ampChainPlugins(chain) {
+  if (chain === "bassman") {
+    return [
+      ["satur_on", "Saturn 2"],
+      ["nam_on", "NA Faceman"],
+      ["cab_on", "Cab IRs"]
+    ];
+  }
+  if (chain === "dumble") {
+    return [
+      ["overdrive_on", "NA Overdrive Special"],
+      ["cab_dumble_on", "Cab IRs"]
+    ];
+  }
+  return [];
+}
+
+function drawPluginColumn(heading, colX, y, plugins, controlStartY) {
   var i;
   var id;
+  var rowY = controlStartY !== undefined ? controlStartY : y + 44;
 
-  ghq_shared.text("Amp Sims", x, y + 24, 15, colors.text);
-  for (i = 0; i < ids.length; i += 1) {
-    id = ids[i];
-    ghq_shared.button(hitZones, id, labels[i], x, y + 44 + i * 38, 140, 30, controlState(id).active, {
+  if (heading) {
+    ghq_shared.text(heading, colX, y + 24, 15, colors.text);
+  }
+  for (i = 0; i < plugins.length; i += 1) {
+    id = plugins[i][0];
+    ghq_shared.button(hitZones, id, plugins[i][1], colX, rowY + i * AMP_ROW_PITCH, AMP_COL_W, AMP_CONTROL_H, controlState(id).normalized >= 0.5, {
       action: "trigger",
       controlId: id
     });
   }
+  return colX + AMP_COL_W + AMP_COL_GAP;
+}
 
-  ghq_shared.text("Core", x + 174, y + 24, 15, colors.text);
-  for (i = 0; i < core.length; i += 1) {
-    id = core[i][0];
-    ghq_shared.button(hitZones, id, core[i][1], x + 174, y + 44 + i * 38, 150, 30, controlState(id).normalized >= 0.5, {
+function mixBoxPlugins() {
+  return [
+    ["mixbox_slot1_on", "Black 76"],
+    ["mixbox_slot2_on", "Model 670"],
+    ["mixbox_slot3_on", "White 2A"],
+    ["mixbox_slot4_on", "Bus Compressor"],
+    ["mixbox_slot5_on", "EQ PA"],
+    ["mixbox_slot6_on", "EQ 81"],
+    ["mixbox_slot7_on", "British EQ"],
+    ["mixbox_slot8_on", "Vintage EQ-1A"]
+  ];
+}
+
+function drawAmpChainColumn(chain, colX, y) {
+  var heading = chain === "bassman" ? "Bassman" : "Dumble";
+
+  return drawPluginColumn(heading, colX, y, ampChainPlugins(chain));
+}
+
+function drawAmpAndCore() {
+  var x = 660;
+  var y = 28;
+  var toggleW = 68;
+  var faderX = x + toggleW + AMP_COL_GAP;
+  var colX = faderX + AMP_COL_W + AMP_COL_GAP;
+  var toggleIds = ["amp_dry", "amp_bassman", "amp_dumble"];
+  var volIds = ["amp_dry_vol", "amp_bassman_vol", "amp_dumble_vol"];
+  var labels = ["Dry", "Bassman", "Dumble"];
+  var chains = ghq_shared.activeAmpChains(rackState.controls);
+  var i;
+  var id;
+  var vol;
+  var rowY;
+
+  ghq_shared.text("Amp Sims", x, y + 24, 15, colors.text);
+  for (i = 0; i < toggleIds.length; i += 1) {
+    id = toggleIds[i];
+    vol = controlState(volIds[i]);
+    rowY = y + 44 + i * AMP_ROW_PITCH;
+    ghq_shared.button(hitZones, id, labels[i], x, rowY, toggleW, AMP_CONTROL_H, controlState(id).active, {
       action: "trigger",
       controlId: id
     });
+    ghq_shared.slider(hitZones, volIds[i], "", vol.normalized || 0, faderX, rowY, AMP_COL_W, AMP_CONTROL_H, {
+      action: "set",
+      controlId: volIds[i]
+    }, vol.valueLabel || "");
+  }
+
+  for (i = 0; i < chains.length; i += 1) {
+    colX = drawAmpChainColumn(chains[i], colX, y);
   }
 }
 
@@ -198,6 +270,13 @@ function drawDetailSliders() {
     "plate_on",
     "plate_mix"
   ]);
+  drawPluginColumn(
+    null,
+    detailCol(8) + DETAIL_SLIDER_W + DETAIL_COL_GAP,
+    DETAIL_COL_Y,
+    mixBoxPlugins(),
+    DETAIL_COL_Y + DETAIL_LABEL_H
+  );
 }
 
 function drawSection(x, y, ids) {
@@ -209,17 +288,17 @@ function drawSection(x, y, ids) {
   for (i = 0; i < ids.length; i += 1) {
     id = ids[i];
     c = controlState(id);
-    cy = y + i * 42;
+    cy = y + i * DETAIL_ROW_PITCH;
     if (c.kind === "device_toggle" || id.indexOf("_on") !== -1) {
-      ghq_shared.button(hitZones, id, c.label || labelFor(id), x, cy, DETAIL_SLIDER_W, 28, c.normalized >= 0.5, {
+      ghq_shared.button(hitZones, id, c.label || labelFor(id), x, cy + DETAIL_LABEL_H, DETAIL_SLIDER_W, DETAIL_CONTROL_H, c.normalized >= 0.5, {
         action: "trigger",
         controlId: id
       }, DETAIL_TOGGLE_FONT);
     } else {
-      ghq_shared.slider(hitZones, id, sliderLabel(c, id), c.normalized || 0, x, cy + 12, DETAIL_SLIDER_W, 24, {
+      ghq_shared.slider(hitZones, id, sliderLabel(c, id), c.normalized || 0, x, cy + DETAIL_LABEL_H, DETAIL_SLIDER_W, DETAIL_CONTROL_H, {
         action: "set",
         controlId: id
-      });
+      }, c.valueLabel || "");
     }
   }
 }
@@ -253,7 +332,9 @@ function updateSlider(zone, x) {
   sliderSendCache[id] = { at: now, value: normalized };
   if (rackState.controls[id]) {
     rackState.controls[id].normalized = normalized;
-    rackState.controls[id].active = normalized >= 0.5;
+    if (rackState.controls[id].kind === "toggle" || id.indexOf("_on") !== -1) {
+      rackState.controls[id].active = normalized >= 0.5;
+    }
     mgraphics.redraw();
   }
   send("set_control", zone.data.controlId, normalized);
