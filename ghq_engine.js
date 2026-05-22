@@ -343,6 +343,23 @@ function matchingDevices(aliases) {
   return matches;
 }
 
+function resolveTargetDevices(control) {
+  var deviceAliases = GHQ_MAP.deviceAliases[control.deviceKey] || control.device || [];
+  var devices = matchingDevices(deviceAliases);
+  var index = control.deviceIndex;
+
+  if (index !== undefined && index !== null) {
+    index = parseInt(index, 10);
+    if (!isNaN(index) && index >= 0) {
+      return devices[index] ? [devices[index]] : [];
+    }
+  }
+  if (control.match === "all") {
+    return devices;
+  }
+  return devices.length ? [devices[0]] : [];
+}
+
 function firstParameter(deviceApi, aliases) {
   var ids;
   var i;
@@ -386,10 +403,8 @@ function parameterState(parameterApi) {
 }
 
 function bindControl(control) {
-  var deviceAliases = GHQ_MAP.deviceAliases[control.deviceKey] || control.device || [];
-  var devices = matchingDevices(deviceAliases);
+  var useDevices = resolveTargetDevices(control);
   var targets = [];
-  var useDevices = control.match === "all" ? devices : devices.slice(0, 1);
   var parameterApi;
   var state;
   var i;

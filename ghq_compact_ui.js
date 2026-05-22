@@ -9,7 +9,7 @@ mgraphics.init();
 mgraphics.relative_coords = 0;
 mgraphics.autofill = 0;
 
-var WIDTH = 980;
+var WIDTH = 1080;
 var HEIGHT = 176;
 var colors = ghq_shared.colors;
 var hitZones = [];
@@ -46,7 +46,6 @@ function paint() {
   hitZones = [];
   ghq_shared.rect(0, 0, WIDTH, HEIGHT, colors.bg);
   drawHeader();
-  drawInput();
   drawAmpSims();
   drawCore();
   drawEffects();
@@ -66,26 +65,8 @@ function drawHeader() {
   ghq_shared.button(hitZones, "panic", "Off", 72, 138, 48, 24, false, { action: "panic" });
 }
 
-function drawInput() {
-  var x = 152;
-
-  ghq_shared.text("Utility", x, 24, 13, colors.text);
-  ghq_shared.slider(hitZones, "utility_width", "Width", controlState("utility_width").normalized, x, 48, 98, 22, {
-    action: "set",
-    controlId: "utility_width"
-  });
-  ghq_shared.slider(hitZones, "utility_gain", "Gain", controlState("utility_gain").normalized, x, 98, 98, 22, {
-    action: "set",
-    controlId: "utility_gain"
-  });
-  ghq_shared.button(hitZones, "utility_mono", "Mono", x, 136, 58, 24, controlState("utility_mono").normalized >= 0.5, {
-    action: "trigger",
-    controlId: "utility_mono"
-  });
-}
-
 function drawAmpSims() {
-  var x = 276;
+  var x = 152;
   var y = 48;
   var ids = ["amp_dry", "amp_bassman", "amp_dumble"];
   var labels = ["Dry", "Bassman", "Dumble"];
@@ -105,7 +86,7 @@ function drawAmpSims() {
 }
 
 function drawCore() {
-  var x = 424;
+  var x = 300;
   var y = 48;
   var controls = [
     ["satur_on", "Saturn"],
@@ -130,7 +111,7 @@ function drawCore() {
 }
 
 function drawEffects() {
-  var x = 624;
+  var x = 500;
   var y = 42;
   var w = 106;
   var h = 24;
@@ -139,7 +120,8 @@ function drawEffects() {
     ["delay_on", "Delay"],
     ["supermassive_on", "Supermassive"],
     ["spaceblender_on", "SpaceBlend"],
-    ["spring_on", "Spring"],
+    ["spring_tremolo_on", "Spr Trem"],
+    ["spring_reverb_on", "Spr Verb"],
     ["chorus_on", "Chorus"],
     ["flanger_on", "Flanger"],
     ["phase_on", "Phase"],

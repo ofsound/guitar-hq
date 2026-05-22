@@ -74,14 +74,14 @@ ghq_shared.findZone = function (zones, x, y) {
   return null;
 };
 
-ghq_shared.button = function (zones, id, label, x, y, w, h, active, data) {
+ghq_shared.button = function (zones, id, label, x, y, w, h, active, data, fontSize) {
   var colors = ghq_shared.colors;
   var fill = active ? colors.amber : colors.panel2;
   var textColor = active ? colors.off : colors.text;
 
   ghq_shared.rect(x, y, w, h, fill);
   ghq_shared.strokeRect(x, y, w, h, active ? colors.amber : colors.softStroke, 1);
-  ghq_shared.text(label, x + w / 2, y + h / 2 + 4, 11, textColor, "center");
+  ghq_shared.text(label, x + w / 2, y + h / 2 + 4, fontSize || 11, textColor, "center");
   ghq_shared.zone(zones, id, x, y, w, h, data);
 };
 

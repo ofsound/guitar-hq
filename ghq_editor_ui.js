@@ -9,8 +9,15 @@ mgraphics.init();
 mgraphics.relative_coords = 0;
 mgraphics.autofill = 0;
 
-var WIDTH = 1180;
-var HEIGHT = 620;
+var DETAIL_COL_X = 24;
+var DETAIL_SLIDER_W = 164;
+var DETAIL_COL_GAP = 12;
+var DETAIL_COL_PITCH = DETAIL_SLIDER_W + DETAIL_COL_GAP;
+var DETAIL_COL_COUNT = 9;
+var DETAIL_COL_Y = 300;
+var DETAIL_TOGGLE_FONT = 13;
+var WIDTH = DETAIL_COL_X + (DETAIL_COL_COUNT - 1) * DETAIL_COL_PITCH + DETAIL_SLIDER_W + 62;
+var HEIGHT = 680;
 var colors = ghq_shared.colors;
 var hitZones = [];
 var rackState = {
@@ -141,69 +148,87 @@ function drawAmpAndCore() {
   }
 }
 
+function detailCol(index) {
+  return DETAIL_COL_X + index * DETAIL_COL_PITCH;
+}
+
 function drawDetailSliders() {
-  drawSection("Utility", 24, 240, [
-    "utility_width",
-    "utility_gain",
-    "utility_mono"
-  ]);
-  drawSection("Delay", 310, 240, [
+  drawSection(detailCol(0), DETAIL_COL_Y, [
     "delay_on",
     "delay_mix",
-    "delay_feedback",
-    "delay_width"
+    "delay_l_ms",
+    "delay_feedback"
   ]);
-  drawSection("Reverb", 596, 240, [
+  drawSection(detailCol(1), DETAIL_COL_Y, [
     "supermassive_on",
     "supermassive_mix",
-    "supermassive_feedback",
-    "plate_on",
-    "plate_mix"
+    "supermassive_feedback"
   ]);
-  drawSection("Modulation", 882, 240, [
-    "spring_on",
+  drawSection(detailCol(2), DETAIL_COL_Y, [
+    "spaceblender_on",
+    "spaceblender_time",
+    "spaceblender_color",
+    "spaceblender_texture",
+    "spaceblender_mod",
+    "spaceblender_mix"
+  ]);
+  drawSection(detailCol(3), DETAIL_COL_Y, [
+    "spring_reverb_on",
+    "spring_reverb_mix",
+    "spring_reverb_decay"
+  ]);
+  drawSection(detailCol(4), DETAIL_COL_Y, [
+    "spring_tremolo_on",
+    "spring_tremolo_intensity",
+    "spring_tremolo_speed"
+  ]);
+  drawSection(detailCol(5), DETAIL_COL_Y, [
     "chorus_on",
-    "chorus_amount",
+    "chorus_amount"
+  ]);
+  drawSection(detailCol(6), DETAIL_COL_Y, [
     "flanger_on",
-    "flanger_amount",
+    "flanger_amount"
+  ]);
+  drawSection(detailCol(7), DETAIL_COL_Y, [
     "phase_on",
     "phase_mix"
   ]);
+  drawSection(detailCol(8), DETAIL_COL_Y, [
+    "plate_on",
+    "plate_mix"
+  ]);
 }
 
-function drawSection(title, x, y, ids) {
+function drawSection(x, y, ids) {
   var i;
   var id;
   var c;
   var cy;
 
-  ghq_shared.text(title, x, y, 16, colors.text);
   for (i = 0; i < ids.length; i += 1) {
     id = ids[i];
     c = controlState(id);
-    cy = y + 38 + i * 42;
-    if (c.kind === "device_toggle" || id.indexOf("_on") !== -1 || id === "utility_mono") {
-      ghq_shared.button(hitZones, id, c.label || labelFor(id), x, cy, 198, 28, c.normalized >= 0.5, {
+    cy = y + i * 42;
+    if (c.kind === "device_toggle" || id.indexOf("_on") !== -1) {
+      ghq_shared.button(hitZones, id, c.label || labelFor(id), x, cy, DETAIL_SLIDER_W, 28, c.normalized >= 0.5, {
         action: "trigger",
         controlId: id
-      });
-      drawBindingStatus(c, x + 208, cy + 18);
+      }, DETAIL_TOGGLE_FONT);
     } else {
-      ghq_shared.slider(hitZones, id, c.label || labelFor(id), c.normalized || 0, x, cy + 12, 246, 24, {
+      ghq_shared.slider(hitZones, id, sliderLabel(c, id), c.normalized || 0, x, cy + 12, DETAIL_SLIDER_W, 24, {
         action: "set",
         controlId: id
       });
-      drawBindingStatus(c, x, cy + 48);
     }
   }
 }
 
-function drawBindingStatus(c, x, y) {
-  if (!c.bound) {
-    ghq_shared.text("unmapped", x, y, 10, colors.red);
-  } else if (c.parameterName) {
-    ghq_shared.text(c.parameterName, x, y, 10, colors.muted);
+function sliderLabel(c, id) {
+  if (c.bound && c.parameterName) {
+    return c.parameterName;
   }
+  return c.label || labelFor(id);
 }
 
 function labelFor(id) {

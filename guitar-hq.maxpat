@@ -12,7 +12,7 @@
     "rect": [
       80,
       80,
-      980,
+      1080,
       176
     ],
     "bglocked": 0,
@@ -20,7 +20,7 @@
     "openrect": [
       0,
       0,
-      980,
+      1080,
       176
     ],
     "devicewidth": 0,
@@ -49,14 +49,14 @@
           "patching_rect": [
             20,
             20,
-            980,
+            1080,
             176
           ],
           "presentation": 1,
           "presentation_rect": [
             0,
             0,
-            980,
+            1080,
             176
           ]
         }
@@ -91,8 +91,8 @@
             "rect": [
               120,
               120,
-              1180,
-              620
+              1658,
+              680
             ],
             "bglocked": 0,
             "openinpresentation": 1,
@@ -133,15 +133,15 @@
                   "patching_rect": [
                     0,
                     0,
-                    1180,
-                    620
+                    1658,
+                    680
                   ],
                   "presentation": 1,
                   "presentation_rect": [
                     0,
                     0,
-                    1180,
-                    620
+                    1658,
+                    680
                   ]
                 }
               },

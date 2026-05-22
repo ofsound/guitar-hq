@@ -33,7 +33,7 @@ function editorSubpatcher() {
       modernui: 1
     },
     classnamespace: "box",
-    rect: [120.0, 120.0, 1180.0, 620.0],
+    rect: [120.0, 120.0, 1658.0, 680.0],
     bglocked: 0,
     openinpresentation: 1,
     default_fontsize: 12.0,
@@ -56,9 +56,9 @@ function editorSubpatcher() {
           numinlets: 1,
           numoutlets: 1,
           outlettype: [""],
-          patching_rect: [0.0, 0.0, 1180.0, 620.0],
+          patching_rect: [0.0, 0.0, 1658.0, 680.0],
           presentation: 1,
-          presentation_rect: [0.0, 0.0, 1180.0, 620.0]
+          presentation_rect: [0.0, 0.0, 1658.0, 680.0]
         }
       },
       box("editor-out", "outlet", "", [100.0, 700.0, 30.0, 22.0], {
@@ -90,10 +90,10 @@ const patch = {
       modernui: 1
     },
     classnamespace: "box",
-    rect: [80.0, 80.0, 980.0, 176.0],
+    rect: [80.0, 80.0, 1080.0, 176.0],
     bglocked: 0,
     openinpresentation: 1,
-    openrect: [0.0, 0.0, 980.0, 176.0],
+    openrect: [0.0, 0.0, 1080.0, 176.0],
     devicewidth: 0.0,
     statusbarvisible: 2,
     default_fontsize: 12.0,
@@ -112,9 +112,9 @@ const patch = {
           numinlets: 1,
           numoutlets: 1,
           outlettype: [""],
-          patching_rect: [20.0, 20.0, 980.0, 176.0],
+          patching_rect: [20.0, 20.0, 1080.0, 176.0],
           presentation: 1,
-          presentation_rect: [0.0, 0.0, 980.0, 176.0]
+          presentation_rect: [0.0, 0.0, 1080.0, 176.0]
         }
       },
       {

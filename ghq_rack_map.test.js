@@ -35,6 +35,9 @@ for (const control of map.controls) {
   if (control.optional && control.kind === "device_toggle") {
     fail(`${control.id}: device toggles should not be optional`);
   }
+  if (control.deviceIndex !== undefined && (typeof control.deviceIndex !== "number" || control.deviceIndex < 0)) {
+    fail(`${control.id}: deviceIndex must be a non-negative number`);
+  }
 }
 
 if (!process.exitCode) {
