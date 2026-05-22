@@ -16,12 +16,20 @@ ghq_shared.colors = {
   off: [0.08, 0.09, 0.11, 1]
 };
 
+ghq_shared.WHEEL_NUDGE = 0.02;
+ghq_shared.WHEEL_NUDGE_SHIFT = 0.06;
+
 ghq_shared.clamp = function (value, min, max) {
   value = parseFloat(value);
   if (isNaN(value)) {
     return min;
   }
   return Math.max(min, Math.min(max, value));
+};
+
+ghq_shared.wheelNudge = function (scrolly, shift) {
+  var step = shift ? ghq_shared.WHEEL_NUDGE_SHIFT : ghq_shared.WHEEL_NUDGE;
+  return -scrolly * step;
 };
 
 ghq_shared.setColor = function (color) {

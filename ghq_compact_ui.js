@@ -199,8 +199,7 @@ function rack_state(json) {
   mgraphics.redraw();
 }
 
-function updateSlider(zone, x) {
-  var normalized = ghq_shared.clamp((x - zone.x) / zone.w, 0, 1);
+function setSliderNormalized(zone, normalized) {
   var id = zone.data.controlId;
   var now = Date.now();
   var cached = sliderSendCache[id] || { at: 0, value: -1 };
@@ -215,6 +214,10 @@ function updateSlider(zone, x) {
     mgraphics.redraw();
   }
   send("set_control", zone.data.controlId, normalized);
+}
+
+function updateSlider(zone, x) {
+  setSliderNormalized(zone, ghq_shared.clamp((x - zone.x) / zone.w, 0, 1));
 }
 
 function control_state(json) {
@@ -262,6 +265,19 @@ function ondrag(x, y) {
   if (zone && zone.data.action === "set") {
     updateSlider(zone, x);
   }
+}
+
+function onwheel(x, y, scrollx, scrolly, mod1, shift, caps, opt, mod2) {
+  var zone = ghq_shared.findZone(hitZones, x, y);
+  var state;
+  var normalized;
+
+  if (!zone || zone.data.action !== "set") {
+    return;
+  }
+  state = controlState(zone.data.controlId);
+  normalized = ghq_shared.clamp((state.normalized || 0) + ghq_shared.wheelNudge(scrolly, shift), 0, 1);
+  setSliderNormalized(zone, normalized);
 }
 
 function anything() {
