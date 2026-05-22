@@ -1,0 +1,19 @@
+.DS_Store
+Thumbs.db
+
+# Dependencies (none pinned today; ignore if added later)
+node_modules/
+
+# Local env / secrets
+.env
+.env.*
+
+# Editor and OS junk
+*.swp
+*~
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*

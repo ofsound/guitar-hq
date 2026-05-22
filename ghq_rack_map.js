@@ -2,13 +2,13 @@
 // Loaded via include() in Max and require() in Node tests.
 var ghq_rack_map = {
   title: "Guitar HQ",
-  sourcePreset: "/Users/ben/Music/Ableton/User Library/Presets/Audio Effects/Audio Effect Rack/2026 Guitar Rack.adg",
   expectedRack: "2026 Guitar Rack",
   deviceAliases: {
     utility: ["Utility", "StereoGain"],
     ampSims: ["Amp Sims"],
     saturn: ["Saturn 2", "FabFilter Saturn 2", "Satur 2"],
     faceman: ["NA Faceman", "Nembrini Audio NA Faceman", "NAM Faceman"],
+    // Hybrid Reverb is the Live device name for the cab IR loader in this rack.
     cab: ["Cab IRs", "Hybrid Reverb"],
     tuner: ["Tuner"],
     valhallaDelay: ["ValhallaDelay", "Valhalla Delay"],

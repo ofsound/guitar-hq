@@ -7,19 +7,15 @@ Racks with LiveAPI.
 
 ## Rack Map
 
-The map was derived from:
+The map targets the **`2026 Guitar Rack`** Audio Effect Rack preset (`.adg` in your Ableton User Library). If you fork the rack, update `expectedRack` and `deviceAliases` in `ghq_rack_map.js`.
 
-```text
-/Users/ben/Music/Ableton/User Library/Presets/Audio Effects/Audio Effect Rack/2026 Guitar Rack.adg
-```
-
-It targets these devices and nested rack chains:
+Devices and nested chains referenced by the map:
 
 - `Utility`
 - `Amp Sims` with `Dry`, `Bassman`, and `Dumble` chain-selector buttons
 - `Saturn 2`
 - `NA Faceman`
-- `Cab IRs`
+- `Cab IRs` (scanned as **Hybrid Reverb** in this rack)
 - `Tuner`
 - `ValhallaDelay`
 - `ValhallaSupermassive`
@@ -62,10 +58,17 @@ Override the destination folder with `GHQ_ABLETON_DEST` if needed.
 
 ## Using In Live
 
-Place `Guitar-HQ.amxd`, `ghq_engine.js`, `ghq_compact_ui.js`,
-`ghq_ui_shared.js`, and `ghq_rack_map.js` together in your Ableton User Library.
-Drop the device either next to `2026 Guitar Rack` or inside one of its chains.
-Click `Scan` after renaming devices or moving the command center.
+Copy or sync these files into the same User Library folder (default: `Presets/Audio Effects/Max Audio Effect/`):
 
-The device recursively scans sibling devices and nested rack chains from its
-current Live chain, then controls the matched devices by name.
+- `Guitar-HQ.amxd`
+- `ghq_engine.js`
+- `ghq_compact_ui.js`
+- `ghq_editor_ui.js`
+- `ghq_ui_shared.js`
+- `ghq_rack_map.js`
+
+`npm run sync` copies exactly that set (see `scripts/sync-user-library.js`).
+
+Drop the device next to **`2026 Guitar Rack`** or inside one of its chains. Click **Scan** after renaming devices or moving the command center.
+
+The device recursively scans sibling devices and nested rack chains on the current Live track, then controls matched devices by name.

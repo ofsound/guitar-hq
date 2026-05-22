@@ -6,7 +6,7 @@ alwaysApply: true
 # Project Context
 
 - **Product:** Guitar HQ — Max for Live **Audio Effect** command center for Ableton Live **12.4+**
-- **Target rack:** `2026 Guitar Rack` (see `ghq_rack_map.expectedRack` and `sourcePreset` in `ghq_rack_map.js`)
+- **Target rack:** `2026 Guitar Rack` (see `ghq_rack_map.expectedRack`; preset path is documented in `README.md` only)
 - **Behavior:** Passes audio through; controls nearby rack devices via **LiveAPI** (no MIDI generation)
 - **Runtime:** Max `js` (engine) and `jsui` (compact + editor) with **ES5-style** JavaScript (`var`, `function`, no bundler)
 - **Tooling:** **Node.js** for `ghq_rack_map.test.js`, `node --check` on `.js` files, and `scripts/*` only
