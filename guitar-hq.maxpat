@@ -458,49 +458,12 @@
       },
       {
         "box": {
-          "id": "engine-events",
-          "maxclass": "newobj",
-          "numinlets": 1,
-          "numoutlets": 2,
-          "patching_rect": [
-            700,
-            560,
-            48,
-            22
-          ],
-          "outlettype": [
-            "",
-            ""
-          ],
-          "text": "t a a"
-        }
-      },
-      {
-        "box": {
-          "id": "recv-events",
-          "maxclass": "newobj",
-          "numinlets": 0,
-          "numoutlets": 1,
-          "patching_rect": [
-            700,
-            520,
-            132,
-            22
-          ],
-          "outlettype": [
-            ""
-          ],
-          "text": "r ghq_engine_events"
-        }
-      },
-      {
-        "box": {
           "id": "ui-events",
           "maxclass": "newobj",
           "numinlets": 0,
           "numoutlets": 1,
           "patching_rect": [
-            860,
+            700,
             520,
             132,
             22
@@ -672,59 +635,11 @@
       {
         "patchline": {
           "source": [
-            "engine",
-            0
-          ],
-          "destination": [
-            "engine-events",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "recv-events",
-            0
-          ],
-          "destination": [
-            "engine-events",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
             "ui-events",
             0
           ],
           "destination": [
             "ui",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "engine-events",
-            0
-          ],
-          "destination": [
-            "ui",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "engine-events",
-            1
-          ],
-          "destination": [
-            "editor_patch",
             0
           ]
         }

@@ -57,7 +57,7 @@ There is **no** `docs/` folder in this repo — do not reference Kick Snare Hat 
 ## 4. Architecture (do not break casually)
 
 - **Not a MIDI device:** Audio passes through `plugin~` → `plugout~` unchanged. No step sequencer, transport, or `pattrstorage`.
-- **Engine ↔ UI:** Engine broadcasts on `ghq_engine_events`: `rack_state`, `control_state`, `tuner_state` (JSON strings). Patch `receive` objects fan out to compact + editor `jsui`.
+- **Engine ↔ UI:** Engine broadcasts on `ghq_engine_events` via `messnamed` only: `rack_state`, `control_state`, `tuner_state` (JSON strings). Each `jsui` has one `r ghq_engine_events` (compact on root patch, editor inside subpatcher).
 - **UI → engine:** UIs `outlet(0, ...)` into the patch; `route open_editor` sends editor open to `pcontrol`, everything else to `js ghq_engine.js` (`scan`, `set_control`, `trigger_control`, `all_off`, …).
 - **LiveAPI:** `scan()` walks devices from the device’s chain (siblings + nested rack chains). Bindings match `ghq_rack_map.deviceAliases` and `parameter` names case-insensitively. User must **Scan** after rack moves/renames.
 - **Tuner:** `fzero~` on incoming audio → `tuner_frequency` → engine → `tuner_state` events.

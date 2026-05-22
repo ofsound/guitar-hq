@@ -193,17 +193,7 @@ const patch = {
         numoutlets: 1,
         outlettype: [""]
       }),
-      box("engine-events", "newobj", "t a a", [700.0, 560.0, 48.0, 22.0], {
-        numinlets: 1,
-        numoutlets: 2,
-        outlettype: ["", ""]
-      }),
-      box("recv-events", "newobj", "r ghq_engine_events", [700.0, 520.0, 132.0, 22.0], {
-        numinlets: 0,
-        numoutlets: 1,
-        outlettype: [""]
-      }),
-      box("ui-events", "newobj", "r ghq_engine_events", [860.0, 520.0, 132.0, 22.0], {
+      box("ui-events", "newobj", "r ghq_engine_events", [700.0, 520.0, 132.0, 22.0], {
         numinlets: 0,
         numoutlets: 1,
         outlettype: [""]
@@ -223,11 +213,7 @@ const patch = {
       line("route-open", 1, "engine", 0),
       line("openmsg", 0, "pcontrol", 0),
       line("pcontrol", 0, "editor_patch", 0),
-      line("engine", 0, "engine-events", 0),
-      line("recv-events", 0, "engine-events", 0),
       line("ui-events", 0, "ui", 0),
-      line("engine-events", 0, "ui", 0),
-      line("engine-events", 1, "editor_patch", 0),
       line("loadbang", 0, "initmsg", 0),
       line("live-thisdevice", 0, "live-ready-msg", 0),
       line("live-ready-msg", 0, "engine", 0),

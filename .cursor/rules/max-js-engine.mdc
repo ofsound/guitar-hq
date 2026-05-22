@@ -23,7 +23,7 @@ alwaysApply: false
 
 ## UI events (outbound)
 
-Broadcast on **`ghq_engine_events`** (and engine `outlet` 0):
+Broadcast on **`ghq_engine_events`** via `safeMessnamed` only:
 
 | Message | Payload |
 |---------|---------|

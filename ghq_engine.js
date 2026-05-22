@@ -22,6 +22,10 @@ var GHQ_MAP = (function () {
 var bindings = {};
 var scannedDevices = [];
 var tunerState = { frequency: 0, note: "--", cents: 0, confidence: 0 };
+var tunerDisplayEnabled = false;
+var TUNER_EMIT_INTERVAL_MS = 83;
+var TUNER_CENTS_DELTA = 2;
+var tunerLastEmitAt = 0;
 var liveReady = false;
 var pendingScan = false;
 var startupTask = null;
@@ -52,20 +56,6 @@ function safeMessnamed() {
     messnamed.apply(this, arguments);
   } catch (error) {
     postDebug("messnamed failed: " + (error && error.message ? error.message : String(error || "unknown error")));
-  }
-}
-
-function safeOutlet() {
-  var args;
-
-  if (typeof outlet !== "function") {
-    return;
-  }
-  args = arrayfromargs(arguments);
-  try {
-    outlet.apply(this, args);
-  } catch (error) {
-    postDebug("outlet failed: " + (error && error.message ? error.message : String(error || "unknown error")));
   }
 }
 
@@ -536,9 +526,10 @@ function emitState(status) {
   };
 
   safeMessnamed("ghq_engine_events", "rack_state", JSON.stringify(lastState));
-  safeMessnamed("ghq_engine_events", "tuner_state", JSON.stringify(tunerState));
-  safeOutlet(0, "rack_state", JSON.stringify(lastState));
-  safeOutlet(0, "tuner_state", JSON.stringify(tunerState));
+  syncTunerDisplayEnabled();
+  if (tunerDisplayEnabled) {
+    safeMessnamed("ghq_engine_events", "tuner_state", JSON.stringify(tunerState));
+  }
 }
 
 function controlViewState(control, binding, normalized, value) {
@@ -573,7 +564,28 @@ function emitControlState(control, binding, normalized, value, status) {
   };
 
   safeMessnamed("ghq_engine_events", "control_state", JSON.stringify(payload));
-  safeOutlet(0, "control_state", JSON.stringify(payload));
+}
+
+function idleTunerState() {
+  return { frequency: 0, note: "--", cents: 0, confidence: 0 };
+}
+
+function clearTunerDisplay() {
+  tunerState = idleTunerState();
+  tunerLastEmitAt = 0;
+  safeMessnamed("ghq_engine_events", "tuner_state", JSON.stringify(tunerState));
+}
+
+function syncTunerDisplayEnabled() {
+  var controlState = lastState.controls && lastState.controls.tuner_on;
+  var enabled = !!(controlState && controlState.bound && controlState.normalized >= 0.5);
+
+  tunerDisplayEnabled = enabled;
+  if (!enabled) {
+    if (tunerState.frequency > 0 || tunerState.note !== "--") {
+      clearTunerDisplay();
+    }
+  }
 }
 
 function noteNameFromFrequency(frequency) {
@@ -593,17 +605,48 @@ function noteNameFromFrequency(frequency) {
   };
 }
 
-function tuner_frequency(frequency, confidence) {
-  var noteInfo = noteNameFromFrequency(frequency);
+function shouldEmitTunerState(next) {
+  var now = Date.now();
+  var noteChanged = next.note !== tunerState.note;
+  var wasIdle = tunerState.frequency <= 0 || tunerState.note === "--";
+  var isIdle = next.frequency <= 0 || next.note === "--";
+  var centsDelta = Math.abs(next.cents - tunerState.cents);
 
-  tunerState = {
+  if (wasIdle !== isIdle || noteChanged) {
+    return true;
+  }
+  if (isIdle) {
+    return false;
+  }
+  if (centsDelta >= TUNER_CENTS_DELTA) {
+    return true;
+  }
+  return now - tunerLastEmitAt >= TUNER_EMIT_INTERVAL_MS;
+}
+
+function tuner_frequency(frequency, confidence) {
+  var noteInfo;
+  var next;
+
+  if (!tunerDisplayEnabled) {
+    return;
+  }
+
+  noteInfo = noteNameFromFrequency(frequency);
+  next = {
     frequency: parseFloat(frequency) || 0,
     note: noteInfo.note,
     cents: noteInfo.cents,
     confidence: parseFloat(confidence) || 0
   };
+
+  if (!shouldEmitTunerState(next)) {
+    return;
+  }
+
+  tunerState = next;
+  tunerLastEmitAt = Date.now();
   safeMessnamed("ghq_engine_events", "tuner_state", JSON.stringify(tunerState));
-  safeOutlet(0, "tuner_state", JSON.stringify(tunerState));
 }
 
 function scan() {
