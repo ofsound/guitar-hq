@@ -292,6 +292,24 @@
       },
       {
         "box": {
+          "id": "tuner-gain-recv",
+          "maxclass": "newobj",
+          "numinlets": 0,
+          "numoutlets": 1,
+          "patching_rect": [
+            120,
+            520,
+            168,
+            22
+          ],
+          "outlettype": [
+            ""
+          ],
+          "text": "r ghq_tuner_analysis_gain"
+        }
+      },
+      {
+        "box": {
           "id": "tuner-detect",
           "maxclass": "newobj",
           "numinlets": 1,
@@ -527,6 +545,18 @@
           "destination": [
             "tuner-gain",
             0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "tuner-gain-recv",
+            0
+          ],
+          "destination": [
+            "tuner-gain",
+            1
           ]
         }
       },

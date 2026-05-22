@@ -150,6 +150,11 @@ const patch = {
         numoutlets: 1,
         outlettype: ["signal"]
       }),
+      box("tuner-gain-recv", "newobj", "r ghq_tuner_analysis_gain", [120.0, 520.0, 168.0, 22.0], {
+        numinlets: 0,
+        numoutlets: 1,
+        outlettype: [""]
+      }),
       box("tuner-detect", "newobj", "fzero~ @period 2048 @size 4096 @freqmin 40 @freqmax 1200 @threshold 0.01 @quiet 1", [60.0, 560.0, 420.0, 22.0], {
         numinlets: 1,
         numoutlets: 3,
@@ -210,6 +215,7 @@ const patch = {
       line("plugin", 0, "plugout", 0),
       line("plugin", 1, "plugout", 1),
       line("plugin", 0, "tuner-gain", 0),
+      line("tuner-gain-recv", 0, "tuner-gain", 1),
       line("tuner-gain", 0, "tuner-detect", 0),
       line("tuner-detect", 0, "tuner-pack", 0),
       line("tuner-detect", 1, "tuner-pack", 1),

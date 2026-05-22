@@ -27,9 +27,10 @@ var TUNER_EMIT_INTERVAL_MS = 83;
 var TUNER_CENTS_DELTA = 2;
 var TUNER_MIN_ANALYSIS_AMP = 0.02;
 var tunerLastEmitAt = 0;
+var TUNER_GAIN_BASE = 2;
+var TUNER_GAIN_RANGE = 18;
 var liveReady = false;
 var pendingScan = false;
-var startupTask = null;
 var lastState = {
   title: GHQ_MAP.title,
   scanned: false,
@@ -567,6 +568,22 @@ function emitControlState(control, binding, normalized, value, status) {
   safeMessnamed("ghq_engine_events", "control_state", JSON.stringify(payload));
 }
 
+function computeTunerAnalysisGain() {
+  var binding = bindings["utility_gain"];
+  var normalized = 0.5;
+  var state;
+
+  if (binding && binding.targets && binding.targets.length) {
+    state = parameterState(binding.targets[0].parameter);
+    normalized = state.normalized;
+  }
+  return TUNER_GAIN_BASE + normalized * TUNER_GAIN_RANGE;
+}
+
+function publishTunerAnalysisGain() {
+  safeMessnamed("ghq_tuner_analysis_gain", computeTunerAnalysisGain());
+}
+
 function idleTunerState() {
   return { frequency: 0, note: "--", cents: 0, confidence: 0 };
 }
@@ -586,7 +603,9 @@ function syncTunerDisplayEnabled() {
     if (tunerState.frequency > 0 || tunerState.note !== "--") {
       clearTunerDisplay();
     }
+    return;
   }
+  publishTunerAnalysisGain();
 }
 
 function noteNameFromFrequency(frequency) {
@@ -671,6 +690,7 @@ function scan() {
   for (i = 0; i < GHQ_MAP.controls.length; i += 1) {
     bindControl(GHQ_MAP.controls[i]);
   }
+  publishTunerAnalysisGain();
   emitState("Scanned");
 }
 
@@ -699,6 +719,9 @@ function setControl(controlId, normalized) {
     setNumeric(binding.targets[i].parameter, "value", value);
   }
   emitControlState(binding.control, binding, normalized, firstValue, "Set " + binding.control.label);
+  if (controlId === "utility_gain") {
+    publishTunerAnalysisGain();
+  }
 }
 
 function triggerControl(controlId) {
