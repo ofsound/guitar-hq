@@ -19,7 +19,14 @@ var GHQ_MAP = (function () {
   throw new Error("ghq_rack_map.js is required");
 }());
 
+if (typeof include === "function") {
+  include("ghq_hybrid_ir_presets.js");
+}
+
 var bindings = {};
+var cabIrSelection = { "0": -1, "1": -1 };
+var hybridUserCategoryByDeviceId = {};
+var hybridIrListLogged = false;
 var scannedDevices = [];
 var tunerState = { frequency: 0, note: "--", cents: 0, confidence: 0 };
 var tunerDisplayEnabled = false;
@@ -200,6 +207,330 @@ function setNumeric(api, propertyName, value) {
   }
 }
 
+function setIntProperty(api, propertyName, value) {
+  var intValue = parseInt(value, 10);
+
+  if (isNaN(intValue)) {
+    return false;
+  }
+  try {
+    api.set(propertyName, intValue);
+    return true;
+  } catch (error) {
+    try {
+      api.set(propertyName, [intValue]);
+      return true;
+    } catch (error2) {
+      return false;
+    }
+  }
+}
+
+function getIntProperty(api, propertyName, fallback) {
+  return Math.round(getNumeric(api, propertyName, fallback));
+}
+
+function getStringListProperty(api, propertyName) {
+  var value;
+  var i;
+
+  try {
+    value = api.get(propertyName);
+    if (!(value instanceof Array)) {
+      return value === undefined || value === null ? [] : [String(value)];
+    }
+    for (i = 0; i < value.length; i += 1) {
+      value[i] = String(value[i]);
+    }
+    return value;
+  } catch (error) {
+    return [];
+  }
+}
+
+function deviceSupportsHybridIr(api) {
+  var className;
+
+  if (!api) {
+    return false;
+  }
+  className = normalizeName(getStringProperty(api, "class_name"));
+  if (className.indexOf("hybridreverb") !== -1) {
+    return true;
+  }
+  try {
+    api.get("ir_category_index");
+    api.get("ir_file_index");
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function isHybridReverbDevice(api) {
+  return deviceSupportsHybridIr(api);
+}
+
+function collectHybridReverbs(deviceApi, out, seen) {
+  var id = apiId(deviceApi);
+  var chainIds;
+  var deviceIds;
+  var i;
+  var j;
+  var chainApi;
+  var childApi;
+
+  if (!deviceApi || !id || seen[id]) {
+    return;
+  }
+  seen[id] = true;
+
+  if (deviceSupportsHybridIr(deviceApi)) {
+    out.push(deviceApi);
+  }
+
+  chainIds = childIds(deviceApi, "chains").concat(childIds(deviceApi, "return_chains"));
+  for (i = 0; i < chainIds.length; i += 1) {
+    chainApi = apiFromId(chainIds[i]);
+    deviceIds = chainApi ? childIds(chainApi, "devices") : [];
+    for (j = 0; j < deviceIds.length; j += 1) {
+      childApi = apiFromId(deviceIds[j]);
+      collectHybridReverbs(childApi, out, seen);
+    }
+  }
+}
+
+function cabHybridReverbDevices() {
+  var aliases = GHQ_MAP.deviceAliases.cab || [];
+  var matches = matchingDevices(aliases);
+  var seen = {};
+  var out = [];
+  var i;
+
+  for (i = 0; i < matches.length; i += 1) {
+    collectHybridReverbs(matches[i], out, seen);
+  }
+  return out;
+}
+
+function hybridIrPresets() {
+  if (typeof ghq_hybrid_ir_presets !== "undefined") {
+    return ghq_hybrid_ir_presets;
+  }
+  return { userCategoryName: "User", entries: [] };
+}
+
+function resolveHybridUserCategoryIndex(deviceApi) {
+  var deviceId = apiId(deviceApi);
+  var presets = hybridIrPresets();
+  var categories;
+  var i;
+  var name;
+
+  if (deviceId && hybridUserCategoryByDeviceId[deviceId] !== undefined) {
+    return hybridUserCategoryByDeviceId[deviceId];
+  }
+
+  categories = getStringListProperty(deviceApi, "ir_category_list");
+  for (i = 0; i < categories.length; i += 1) {
+    name = categories[i];
+    if (normalizeName(name) === normalizeName(presets.userCategoryName || "User")) {
+      if (deviceId) {
+        hybridUserCategoryByDeviceId[deviceId] = i;
+      }
+      return i;
+    }
+  }
+
+  if (categories.length) {
+    if (deviceId) {
+      hybridUserCategoryByDeviceId[deviceId] = categories.length - 1;
+    }
+    return categories.length - 1;
+  }
+
+  return -1;
+}
+
+function readHybridIrFileIndex(deviceApi) {
+  var userCategoryIndex = resolveHybridUserCategoryIndex(deviceApi);
+  var categoryIndex;
+
+  if (userCategoryIndex < 0) {
+    return -1;
+  }
+
+  categoryIndex = getIntProperty(deviceApi, "ir_category_index", -1);
+  if (categoryIndex !== userCategoryIndex) {
+    return -1;
+  }
+  return getIntProperty(deviceApi, "ir_file_index", -1);
+}
+
+function setHybridReverbIr(deviceApi, categoryIndex, fileIndex) {
+  if (!deviceApi || categoryIndex < 0 || fileIndex < 0) {
+    return false;
+  }
+  if (!setIntProperty(deviceApi, "ir_category_index", categoryIndex)) {
+    return false;
+  }
+  return setIntProperty(deviceApi, "ir_file_index", fileIndex);
+}
+
+function cabIrDeviceKey(deviceIndex) {
+  return String(deviceIndex === undefined || deviceIndex === null ? 0 : deviceIndex);
+}
+
+function syncCabIrSelectionFromDevice(deviceIndex) {
+  var devices = cabHybridReverbDevices();
+  var fileIndex;
+
+  if (!devices.length || !devices[deviceIndex]) {
+    return -1;
+  }
+
+  fileIndex = readHybridIrFileIndex(devices[deviceIndex]);
+  cabIrSelection[cabIrDeviceKey(deviceIndex)] = fileIndex >= 0 ? fileIndex : -1;
+  return cabIrSelection[cabIrDeviceKey(deviceIndex)];
+}
+
+function pollCabIrFromLive() {
+  var devices = cabHybridReverbDevices();
+  var i;
+  var key;
+  var fileIndex;
+  var previous;
+
+  for (i = 0; i < devices.length; i += 1) {
+    fileIndex = readHybridIrFileIndex(devices[i]);
+    key = cabIrDeviceKey(i);
+    previous = parseInt(cabIrSelection[key], 10);
+    if (isNaN(previous)) {
+      previous = -1;
+    }
+    if (fileIndex < 0) {
+      if (previous !== -1) {
+        cabIrSelection[key] = -1;
+        emitHybridIrGroup(i);
+      }
+      continue;
+    }
+    if (previous !== fileIndex) {
+      cabIrSelection[key] = fileIndex;
+      emitHybridIrGroup(i);
+    }
+  }
+}
+
+function hybridIrViewState(control, binding) {
+  var selected = parseInt(cabIrSelection[cabIrDeviceKey(control.deviceIndex)], 10);
+  var fileIndex = parseInt(control.irFileIndex, 10);
+  var active = !isNaN(selected) && selected >= 0 && selected === fileIndex;
+
+  return {
+    id: control.id,
+    label: control.label,
+    kind: control.kind,
+    section: control.section || "",
+    detail: control.detail ? true : false,
+    bound: !!(binding && binding.targets && binding.targets.length),
+    deviceName: binding && binding.targets ? targetDeviceName(binding.targets) : "",
+    parameterName: "",
+    targetCount: binding && binding.targets ? binding.targets.length : 0,
+    normalized: active ? 1 : 0,
+    value: control.irFileIndex,
+    active: active,
+    valueLabel: active ? control.label : ""
+  };
+}
+
+function bindHybridIrControl(control) {
+  var devices = cabHybridReverbDevices();
+  var deviceApi = null;
+  var index = parseInt(control.deviceIndex, 10);
+  var targets = [];
+  var state;
+  var userCategoryIndex;
+  var fileList;
+
+  if (!isNaN(index) && index >= 0 && devices[index]) {
+    deviceApi = devices[index];
+  }
+
+  if (deviceApi && deviceSupportsHybridIr(deviceApi)) {
+    targets.push({ device: deviceApi });
+    userCategoryIndex = resolveHybridUserCategoryIndex(deviceApi);
+    if (!hybridIrListLogged && userCategoryIndex >= 0) {
+      setIntProperty(deviceApi, "ir_category_index", userCategoryIndex);
+      fileList = getStringListProperty(deviceApi, "ir_file_list");
+      if (fileList.length) {
+        hybridIrListLogged = true;
+        postDebug("Hybrid User IRs (index:label): " + fileList.map(function (name, idx) {
+          return idx + ":" + name;
+        }).join(" | "));
+      }
+    }
+    syncCabIrSelectionFromDevice(control.deviceIndex);
+  }
+
+  state = hybridIrViewState(control, { control: control, targets: targets });
+  bindings[control.id] = {
+    control: control,
+    targets: targets
+  };
+  return state;
+}
+
+function emitHybridIrGroup(deviceIndex) {
+  var i;
+  var control;
+  var binding;
+  var state;
+
+  for (i = 0; i < GHQ_MAP.controls.length; i += 1) {
+    control = GHQ_MAP.controls[i];
+    if (control.kind !== "hybrid_ir" || control.deviceIndex !== deviceIndex) {
+      continue;
+    }
+    binding = bindings[control.id];
+    if (!binding) {
+      continue;
+    }
+    state = hybridIrViewState(control, binding);
+    controlSyncSignatures[control.id] = controlSyncSignature(state);
+    safeMessnamed("ghq_engine_events", "control_state", JSON.stringify({
+      id: control.id,
+      status: "",
+      state: state
+    }));
+  }
+}
+
+function applyHybridIrControl(control) {
+  var binding = bindings[control.id];
+  var deviceApi;
+  var userCategoryIndex;
+
+  if (!binding || !binding.targets || !binding.targets.length) {
+    return false;
+  }
+
+  deviceApi = binding.targets[0].device;
+  userCategoryIndex = resolveHybridUserCategoryIndex(deviceApi);
+  if (userCategoryIndex < 0) {
+    return false;
+  }
+
+  if (!setHybridReverbIr(deviceApi, userCategoryIndex, control.irFileIndex)) {
+    postDebug("Hybrid IR set failed for " + control.id + " (category " + userCategoryIndex + ", file " + control.irFileIndex + ")");
+    return false;
+  }
+
+  cabIrSelection[cabIrDeviceKey(control.deviceIndex)] = parseInt(control.irFileIndex, 10);
+  emitHybridIrGroup(control.deviceIndex);
+  return true;
+}
+
 function namesMatch(actual, aliases) {
   var needle = normalizeName(actual);
   var list = asArray(aliases);
@@ -214,7 +545,14 @@ function namesMatch(actual, aliases) {
     if (!alias) {
       continue;
     }
-    if (needle === alias || needle.indexOf(alias) !== -1 || alias.indexOf(needle) !== -1) {
+    if (needle === alias) {
+      return true;
+    }
+    // Short aliases (e.g. "Mod") must not substring-match longer names (e.g. "SyncMode").
+    if (alias.length <= 3) {
+      continue;
+    }
+    if (needle.indexOf(alias) !== -1 || alias.indexOf(needle) !== -1) {
       return true;
     }
   }
@@ -469,7 +807,7 @@ function bindChainTargets(control) {
 
 function resolveTargetDevices(control) {
   var deviceAliases = GHQ_MAP.deviceAliases[control.deviceKey] || control.device || [];
-  var devices = matchingDevices(deviceAliases);
+  var devices = control.kind === "hybrid_ir" ? cabHybridReverbDevices() : matchingDevices(deviceAliases);
   var index = control.deviceIndex;
 
   if (index !== undefined && index !== null) {
@@ -675,6 +1013,9 @@ function attachObserversForBinding(binding) {
     return;
   }
 
+  if (binding.control.kind === "hybrid_ir") {
+    return;
+  }
   for (i = 0; i < binding.targets.length; i += 1) {
     if (binding.targets[i].parameter) {
       attachParameterObserver(binding.control.id, binding.targets[i].parameter);
@@ -692,7 +1033,13 @@ function controlSyncSignature(state) {
 }
 
 function boundControlViewState(control, binding) {
-  var state = {
+  var state;
+
+  if (control.kind === "hybrid_ir") {
+    return hybridIrViewState(control, binding);
+  }
+
+  state = {
     id: control.id,
     label: control.label,
     kind: control.kind,
@@ -722,6 +1069,9 @@ function refreshControlFromLive(controlId, alwaysEmit) {
   if (!binding || !binding.control) {
     return;
   }
+  if (binding.control.kind === "hybrid_ir") {
+    syncCabIrSelectionFromDevice(binding.control.deviceIndex);
+  }
   state = boundControlViewState(binding.control, binding);
   if (!alwaysEmit) {
     signature = controlSyncSignature(state);
@@ -746,8 +1096,12 @@ function pollBoundControlsFromLive() {
   if (!liveAvailable() || !lastState.scanned) {
     return;
   }
+  pollCabIrFromLive();
   for (i = 0; i < GHQ_MAP.controls.length; i += 1) {
     control = GHQ_MAP.controls[i];
+    if (control.kind === "hybrid_ir") {
+      continue;
+    }
     if (bindings[control.id] && bindings[control.id].targets && bindings[control.id].targets.length) {
       refreshControlFromLive(control.id, false);
     }
@@ -760,6 +1114,10 @@ function bindControl(control) {
   var parameterApi;
   var state;
   var i;
+
+  if (control.kind === "hybrid_ir") {
+    return bindHybridIrControl(control);
+  }
 
   if (control.chainName) {
     targets = bindChainTargets(control);
@@ -881,18 +1239,22 @@ function emitState(status) {
     if (!binding) {
       state = bindControl(control);
     } else if (binding.targets && binding.targets.length) {
-      state = {
-        id: control.id,
-        label: control.label,
-        kind: control.kind,
-        section: control.section || "",
-        detail: control.detail ? true : false,
-        bound: true,
-        deviceName: targetDeviceName(binding.targets),
-        parameterName: getName(binding.targets[0].parameter),
-        targetCount: binding.targets.length
-      };
-      applyTargetState(state, control, binding.targets);
+      if (control.kind === "hybrid_ir") {
+        state = hybridIrViewState(control, binding);
+      } else {
+        state = {
+          id: control.id,
+          label: control.label,
+          kind: control.kind,
+          section: control.section || "",
+          detail: control.detail ? true : false,
+          bound: true,
+          deviceName: targetDeviceName(binding.targets),
+          parameterName: getName(binding.targets[0].parameter),
+          targetCount: binding.targets.length
+        };
+        applyTargetState(state, control, binding.targets);
+      }
     } else {
       state = {
         id: control.id,
@@ -1315,6 +1677,9 @@ function scan() {
   clearParameterObservers();
   controlSyncSignatures = {};
   bindings = {};
+  hybridUserCategoryByDeviceId = {};
+  hybridIrListLogged = false;
+  cabIrSelection = { "0": -1, "1": -1 };
   scannedDevices = collectDevices();
   if (!liveAvailable()) {
     emitState("LiveAPI unavailable");
@@ -1323,6 +1688,7 @@ function scan() {
   for (i = 0; i < GHQ_MAP.controls.length; i += 1) {
     bindControl(GHQ_MAP.controls[i]);
   }
+  postDebug("Cab Hybrid Reverbs found: " + cabHybridReverbDevices().length);
   publishTunerAnalysisGain();
   emitState("Scanned");
   startRackSyncPoll();
@@ -1364,6 +1730,15 @@ function triggerControl(controlId) {
 
   if (!binding || !binding.targets || !binding.targets.length) {
     emitState("Unmapped: place next to 2026 Guitar Rack");
+    return;
+  }
+
+  if (binding.control.kind === "hybrid_ir") {
+    if (applyHybridIrControl(binding.control)) {
+      emitState("IR " + binding.control.label);
+    } else {
+      emitState("Hybrid IR failed — Scan after placing Guitar HQ on the rack track");
+    }
     return;
   }
 

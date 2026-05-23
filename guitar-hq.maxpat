@@ -12,7 +12,7 @@
     "rect": [
       80,
       80,
-      1080,
+      136,
       176
     ],
     "bglocked": 0,
@@ -20,7 +20,7 @@
     "openrect": [
       0,
       0,
-      1080,
+      136,
       176
     ],
     "devicewidth": 0,
@@ -49,14 +49,14 @@
           "patching_rect": [
             20,
             20,
-            1080,
+            136,
             176
           ],
           "presentation": 1,
           "presentation_rect": [
             0,
             0,
-            1080,
+            136,
             176
           ]
         }
@@ -91,8 +91,8 @@
             "rect": [
               120,
               120,
-              1928,
-              740
+              1890,
+              638
             ],
             "bglocked": 0,
             "openinpresentation": 1,
@@ -133,15 +133,15 @@
                   "patching_rect": [
                     0,
                     0,
-                    1928,
-                    740
+                    1890,
+                    638
                   ],
                   "presentation": 1,
                   "presentation_rect": [
                     0,
                     0,
-                    1928,
-                    740
+                    1890,
+                    638
                   ]
                 }
               },
@@ -804,6 +804,12 @@
       },
       {
         "name": "ghq_rack_map.js",
+        "bootpath": ".",
+        "type": "TEXT",
+        "implicit": 1
+      },
+      {
+        "name": "ghq_hybrid_ir_presets.js",
         "bootpath": ".",
         "type": "TEXT",
         "implicit": 1

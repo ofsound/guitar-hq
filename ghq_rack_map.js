@@ -1,5 +1,23 @@
 // Data-only rack map for the Guitar HQ command center.
 // Loaded via include() in Max and require() in Node tests.
+if (typeof include === "function") {
+  include("ghq_hybrid_ir_presets.js");
+}
+
+function getCabIrControls() {
+  if (typeof buildAllCabIrControls === "function") {
+    return buildAllCabIrControls();
+  }
+  if (typeof require === "function") {
+    try {
+      return require("./ghq_hybrid_ir_presets").buildAllCabIrControls();
+    } catch (error) {
+      return [];
+    }
+  }
+  return [];
+}
+
 var ghq_rack_map = {
   title: "Guitar HQ",
   expectedRack: "2026 Guitar Rack",
@@ -129,7 +147,7 @@ var ghq_rack_map = {
     },
     {
       id: "delay_on",
-      label: "Delay",
+      label: "ValhallaDelay",
       section: "Time",
       kind: "device_toggle",
       deviceKey: "valhallaDelay"
@@ -150,7 +168,7 @@ var ghq_rack_map = {
     },
     {
       id: "spring_reverb_on",
-      label: "Spring Verb",
+      label: "Spring",
       section: "Spring",
       kind: "device_toggle",
       deviceKey: "spring",
@@ -158,7 +176,7 @@ var ghq_rack_map = {
     },
     {
       id: "spring_tremolo_on",
-      label: "Spring Trem",
+      label: "Tremolo",
       section: "Mod",
       kind: "device_toggle",
       deviceKey: "spring",
@@ -341,7 +359,7 @@ var ghq_rack_map = {
       section: "Ambient Detail",
       kind: "slider",
       deviceKey: "spaceBlender",
-      parameter: ["Mod", "Modulation"],
+      parameter: ["Modulation", "Mod"],
       detail: true
     },
     {
@@ -439,7 +457,7 @@ var ghq_rack_map = {
       detail: true,
       optional: true
     }
-  ]
+  ].concat(getCabIrControls())
 };
 
 if (typeof module !== "undefined" && module.exports) {

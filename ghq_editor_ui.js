@@ -3,6 +3,7 @@ inlets = 1;
 outlets = 1;
 
 include("ghq_ui_shared.js");
+include("ghq_hybrid_ir_presets.js");
 include("ghq_rack_map.js");
 
 mgraphics.init();
@@ -23,16 +24,28 @@ var AMP_COL_W = 150;
 var AMP_CONTROL_H = 30;
 var AMP_ROW_PITCH = 38;
 var AMP_COL_GAP = 24;
-var EDITOR_RIGHT_MARGIN = 62;
-// Detail columns (incl. SuperPlate) + gap + MixBox column + margin. Keep in sync with build-device-patch.js EDITOR_WIDTH.
+var CAB_IR_COLS = 4;
+var CAB_IR_BTN_W = 56;
+var CAB_IR_BTN_H = 16;
+var CAB_IR_BTN_GAP = 3;
+var CAB_IR_COL_W = CAB_IR_COLS * (CAB_IR_BTN_W + CAB_IR_BTN_GAP) - CAB_IR_BTN_GAP;
+var CAB_IR_FONT = 8;
+var TUNER_Y = 28;
+var MIXBOX_SLOT_COUNT = 8;
+// Right margin matches DETAIL_COL_X (left of Scan / Delay). Keep in sync with build-device-patch.js.
 var WIDTH =
   DETAIL_COL_X +
   (DETAIL_COL_COUNT - 1) * DETAIL_COL_PITCH +
   DETAIL_SLIDER_W +
   DETAIL_COL_GAP +
   AMP_COL_W +
-  EDITOR_RIGHT_MARGIN;
-var HEIGHT = 740;
+  DETAIL_COL_X;
+var HEIGHT =
+  DETAIL_COL_Y +
+  DETAIL_LABEL_H +
+  (MIXBOX_SLOT_COUNT - 1) * AMP_ROW_PITCH +
+  AMP_CONTROL_H +
+  TUNER_Y;
 var colors = ghq_shared.colors;
 var hitZones = [];
 var rackState = {
@@ -53,6 +66,31 @@ var SLIDER_SEND_DELTA = 0.0025;
 
 function controlState(id) {
   return rackState.controls[id] || { bound: false, normalized: 0, value: 0, active: false };
+}
+
+function applyLocalCabIrSelection(controlId) {
+  var match = String(controlId).match(/^(bassman|dumble)_cab_ir_(\d+)$/);
+  var prefix;
+  var activeIndex;
+  var entries = ghq_hybrid_ir_presets.entries;
+  var i;
+  var id;
+  var entry;
+  var state;
+
+  if (!match) {
+    return;
+  }
+  prefix = match[1];
+  activeIndex = parseInt(match[2], 10);
+  for (i = 0; i < entries.length; i += 1) {
+    id = cabIrControlId(prefix, i);
+    entry = entries[i];
+    state = controlState(id);
+    state.active = i === activeIndex;
+    state.normalized = state.active ? 1 : 0;
+    rackState.controls[id] = state;
+  }
 }
 
 function send() {
@@ -96,18 +134,16 @@ function paint() {
 function drawHeader() {
   var bound = rackState.boundCount || 0;
   var total = rackState.totalCount || ghq_rack_map.controls.length;
-  var missing = rackState.unmapped && rackState.unmapped.length ? rackState.unmapped.join(", ") : "";
 
   ghq_shared.text("Guitar HQ", 24, 40, 24, colors.text);
   ghq_shared.text(bound + "/" + total + " mapped", 24, 66, 12, bound === total ? colors.green : colors.amber);
-  ghq_shared.text(missing ? "Missing: " + missing : rackState.status || "", 24, 88, 12, missing ? colors.red : colors.muted);
   ghq_shared.button(hitZones, "scan", "Scan", 24, 112, 70, 28, false, { action: "scan" });
   ghq_shared.button(hitZones, "all_off", "All Off", 106, 112, 82, 28, false, { action: "panic" });
 }
 
 function drawTuner() {
   var x = 230;
-  var y = 28;
+  var y = TUNER_Y;
   var w = 390;
   var h = 180;
   var cx = x + w / 2;
@@ -185,9 +221,40 @@ function drawAmpChainColumn(chain, colX, y) {
   return drawPluginColumn(heading, colX, y, ampChainPlugins(chain));
 }
 
+function cabIrControlId(prefix, index) {
+  return prefix + "_cab_ir_" + (index < 10 ? "0" + index : String(index));
+}
+
+function drawCabIrColumn(prefix, heading, colX, y) {
+  var entries = ghq_hybrid_ir_presets.entries;
+  var gridY = y + 44;
+  var i;
+  var col;
+  var row;
+  var id;
+  var bx;
+  var by;
+  var state;
+
+  ghq_shared.text(heading, colX, y + 24, 15, colors.text);
+  for (i = 0; i < entries.length; i += 1) {
+    col = i % CAB_IR_COLS;
+    row = Math.floor(i / CAB_IR_COLS);
+    id = cabIrControlId(prefix, i);
+    bx = colX + col * (CAB_IR_BTN_W + CAB_IR_BTN_GAP);
+    by = gridY + row * (CAB_IR_BTN_H + CAB_IR_BTN_GAP);
+    state = controlState(id);
+    ghq_shared.smallButton(hitZones, id, entries[i].shortLabel, bx, by, CAB_IR_BTN_W, CAB_IR_BTN_H, state.active, {
+      action: "trigger",
+      controlId: id
+    }, CAB_IR_FONT);
+  }
+  return colX + CAB_IR_COL_W + AMP_COL_GAP;
+}
+
 function drawAmpAndCore() {
   var x = 660;
-  var y = 28;
+  var y = TUNER_Y;
   var toggleW = 68;
   var faderX = x + toggleW + AMP_COL_GAP;
   var colX = faderX + AMP_COL_W + AMP_COL_GAP;
@@ -217,6 +284,11 @@ function drawAmpAndCore() {
 
   for (i = 0; i < chains.length; i += 1) {
     colX = drawAmpChainColumn(chains[i], colX, y);
+    if (chains[i] === "bassman") {
+      colX = drawCabIrColumn("bassman", "Bassman Cabs", colX, y);
+    } else if (chains[i] === "dumble") {
+      colX = drawCabIrColumn("dumble", "Dumble Cabs", colX, y);
+    }
   }
 }
 
@@ -279,11 +351,28 @@ function drawDetailSliders() {
   );
 }
 
+function sectionPluginActive(ids) {
+  var i;
+  var id;
+  var toggle;
+
+  for (i = 0; i < ids.length; i += 1) {
+    id = ids[i];
+    if (id.indexOf("_on") !== -1) {
+      toggle = controlState(id);
+      return toggle.normalized >= 0.5 || toggle.active;
+    }
+  }
+  return true;
+}
+
 function drawSection(x, y, ids) {
   var i;
   var id;
   var c;
   var cy;
+  var pluginActive = sectionPluginActive(ids);
+  var sliderFill = pluginActive ? colors.blue : colors.sliderInactive;
 
   for (i = 0; i < ids.length; i += 1) {
     id = ids[i];
@@ -298,7 +387,7 @@ function drawSection(x, y, ids) {
       ghq_shared.slider(hitZones, id, sliderLabel(c, id), c.normalized || 0, x, cy + DETAIL_LABEL_H, DETAIL_SLIDER_W, DETAIL_CONTROL_H, {
         action: "set",
         controlId: id
-      }, c.valueLabel || "");
+      }, c.valueLabel || "", sliderFill);
     }
   }
 }
@@ -354,7 +443,9 @@ function onclick(x, y) {
   } else if (zone.data.action === "panic") {
     send("all_off");
   } else if (zone.data.action === "trigger") {
+    applyLocalCabIrSelection(zone.data.controlId);
     send("trigger_control", zone.data.controlId);
+    mgraphics.redraw();
   } else if (zone.data.action === "set") {
     updateSlider(zone, x);
   }

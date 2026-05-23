@@ -11,6 +11,7 @@ ghq_shared.colors = {
   muted: [0.56, 0.60, 0.66, 1],
   amber: [0.96, 0.62, 0.22, 1],
   blue: [0.27, 0.55, 0.82, 1],
+  sliderInactive: [0.52, 0.55, 0.60, 1],
   green: [0.42, 0.78, 0.38, 1],
   red: [0.88, 0.28, 0.28, 1],
   off: [0.08, 0.09, 0.11, 1]
@@ -93,16 +94,21 @@ ghq_shared.button = function (zones, id, label, x, y, w, h, active, data, fontSi
   ghq_shared.zone(zones, id, x, y, w, h, data);
 };
 
-ghq_shared.slider = function (zones, id, label, value, x, y, w, h, data, valueLabel) {
+ghq_shared.smallButton = function (zones, id, label, x, y, w, h, active, data, fontSize) {
+  ghq_shared.button(zones, id, label, x, y, w, h, active, data, fontSize || 8);
+};
+
+ghq_shared.slider = function (zones, id, label, value, x, y, w, h, data, valueLabel, fillColor) {
   var colors = ghq_shared.colors;
   var normalized = ghq_shared.clamp(value, 0, 1);
   var rightText = valueLabel ? String(valueLabel) : Math.round(normalized * 100) + "%";
+  var fill = fillColor || colors.blue;
 
   if (label) {
     ghq_shared.text(label, x, y - 6, 10, colors.muted);
   }
   ghq_shared.rect(x, y, w, h, colors.off);
-  ghq_shared.rect(x, y, Math.round(w * normalized), h, colors.blue);
+  ghq_shared.rect(x, y, Math.round(w * normalized), h, fill);
   ghq_shared.strokeRect(x, y, w, h, colors.softStroke, 1);
   ghq_shared.text(rightText, x + w - 6, y + h / 2 + 4, 10, colors.text, "right");
   ghq_shared.zone(zones, id, x, y, w, h, data);

@@ -8,15 +8,28 @@ const EDITOR_DETAIL_SLIDER_W = 164;
 const EDITOR_DETAIL_COL_GAP = 24;
 const EDITOR_DETAIL_COL_COUNT = 9;
 const EDITOR_AMP_COL_W = 150;
-const EDITOR_RIGHT_MARGIN = 62;
+const EDITOR_DETAIL_COL_Y = 300;
+const EDITOR_DETAIL_LABEL_H = 14;
+const EDITOR_AMP_ROW_PITCH = 38;
+const EDITOR_AMP_CONTROL_H = 30;
+const EDITOR_TUNER_TOP = 28;
+const EDITOR_MIXBOX_SLOT_COUNT = 8;
 const EDITOR_WIDTH =
   EDITOR_DETAIL_COL_X +
   (EDITOR_DETAIL_COL_COUNT - 1) * (EDITOR_DETAIL_SLIDER_W + EDITOR_DETAIL_COL_GAP) +
   EDITOR_DETAIL_SLIDER_W +
   EDITOR_DETAIL_COL_GAP +
   EDITOR_AMP_COL_W +
-  EDITOR_RIGHT_MARGIN;
-const EDITOR_HEIGHT = 740;
+  EDITOR_DETAIL_COL_X;
+const EDITOR_HEIGHT =
+  EDITOR_DETAIL_COL_Y +
+  EDITOR_DETAIL_LABEL_H +
+  (EDITOR_MIXBOX_SLOT_COUNT - 1) * EDITOR_AMP_ROW_PITCH +
+  EDITOR_AMP_CONTROL_H +
+  EDITOR_TUNER_TOP;
+// Match ghq_compact_ui.js WIDTH / HEIGHT (header column only).
+const COMPACT_WIDTH = 136;
+const COMPACT_HEIGHT = 176;
 // Analysis-only gain before fzero~ (separate tap: plugin~ → *~ → fzero~; audio out is plugin~ → plugout~ only).
 const TUNER_ANALYSIS_GAIN = 16;
 
@@ -105,10 +118,10 @@ const patch = {
       modernui: 1
     },
     classnamespace: "box",
-    rect: [80.0, 80.0, 1080.0, 176.0],
+    rect: [80.0, 80.0, COMPACT_WIDTH, COMPACT_HEIGHT],
     bglocked: 0,
     openinpresentation: 1,
-    openrect: [0.0, 0.0, 1080.0, 176.0],
+    openrect: [0.0, 0.0, COMPACT_WIDTH, COMPACT_HEIGHT],
     devicewidth: 0.0,
     statusbarvisible: 2,
     default_fontsize: 12.0,
@@ -127,9 +140,9 @@ const patch = {
           numinlets: 1,
           numoutlets: 1,
           outlettype: [""],
-          patching_rect: [20.0, 20.0, 1080.0, 176.0],
+          patching_rect: [20.0, 20.0, COMPACT_WIDTH, COMPACT_HEIGHT],
           presentation: 1,
-          presentation_rect: [0.0, 0.0, 1080.0, 176.0]
+          presentation_rect: [0.0, 0.0, COMPACT_WIDTH, COMPACT_HEIGHT]
         }
       },
       {
@@ -255,7 +268,8 @@ const patch = {
       { name: "ghq_compact_ui.js", bootpath: ".", type: "TEXT", implicit: 1 },
       { name: "ghq_editor_ui.js", bootpath: ".", type: "TEXT", implicit: 1 },
       { name: "ghq_ui_shared.js", bootpath: ".", type: "TEXT", implicit: 1 },
-      { name: "ghq_rack_map.js", bootpath: ".", type: "TEXT", implicit: 1 }
+      { name: "ghq_rack_map.js", bootpath: ".", type: "TEXT", implicit: 1 },
+      { name: "ghq_hybrid_ir_presets.js", bootpath: ".", type: "TEXT", implicit: 1 }
     ]
   }
 };

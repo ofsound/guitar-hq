@@ -9,6 +9,7 @@ const DEVICE_FILES = [
   "ghq_editor_ui.js",
   "ghq_ui_shared.js",
   "ghq_rack_map.js",
+  "ghq_hybrid_ir_presets.js",
   "Guitar-HQ.amxd"
 ];
 

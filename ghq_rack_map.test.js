@@ -32,6 +32,11 @@ for (const control of map.controls) {
   if ((control.kind === "slider" || control.kind === "toggle" || control.kind === "select") && !control.parameter) {
     fail(`${control.id}: missing parameter aliases`);
   }
+  if (control.kind === "hybrid_ir") {
+    if (typeof control.irFileIndex !== "number" || control.irFileIndex < 0) {
+      fail(`${control.id}: hybrid_ir requires irFileIndex`);
+    }
+  }
   if (control.mixerParameter && !control.chainName) {
     fail(`${control.id}: mixerParameter requires chainName`);
   }
